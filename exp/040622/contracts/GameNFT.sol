@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-contract GameNft is ERC721, Ownable, Initializable {
+contract GameNft is ERC721, Ownable {
     address private _contractOwner;
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
@@ -14,17 +14,15 @@ contract GameNft is ERC721, Ownable, Initializable {
     uint private _mintLimit;
     uint private _maxSupply;
 
-    function initialize(
+    constructor(
         uint floorPrice,
         uint mintLimit,
         uint maxSupply
-    ) public initializer {
+    ) ERC721("GameNFT", "DM") {
         _floorPrice = floorPrice;
         _mintLimit = mintLimit;
         _maxSupply = maxSupply;
     }
-
-    constructor() ERC721("GameNFT", "DM") initializer {}
 
     function setFloorPrice(uint floorPrice) public onlyOwner {
         _floorPrice = floorPrice;
