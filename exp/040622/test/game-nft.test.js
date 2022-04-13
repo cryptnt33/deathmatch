@@ -3,14 +3,17 @@ const { ethers } = require("hardhat");
 
 describe("test game nft contract", async function () {
 	let contractInstance;
+	let accounts;
 
 	before("deploy", async function () {
 		try {
 			const contract = await ethers.getContractFactory("GameNft");
 			contractInstance = await contract.deploy();
-			await contractInstance.deployed(ethers.utils.parseEther("1"), "10", "100000");
+			await contractInstance.deployed();
+			accounts = await ethers.getSigners();
 			assert.isOk(true);
 		} catch (e) {
+			console.log(e);
 			assert.fail();
 		}
 	});
@@ -21,25 +24,18 @@ describe("test game nft contract", async function () {
 		expect(parseInt(toEther)).to.equal(eth);
 	}
 
-	it("floor price should match", async function () {
-		await verifyFloorPrice(2);
-	});
-
-	it("max supply should match", async function () {
+	it("set and get max supply", async function () {
+		await contractInstance.setMaxSupply(BigInt("10000"));
 		const result = await contractInstance.getMaxSupply();
-		expect(parseInt(result.toString())).to.equal(20000);
+		expect(parseInt(result.toString())).to.equal(10000);
 	});
 
-	it("max purchase limit should match", async function () {
-		const result = await contractInstance.getMaxSupply();
-		expect(parseInt(result.toString())).to.equal(20000);
+	it("verify contract owner", async function () {
+		const acc1 = await contractInstance.isContractOwner(accounts[0].address);
+		expect(acc1).to.equal(true);
+		const acc2 = await contractInstance.isContractOwner(accounts[1].address);
+		expect(acc2).to.equal(false);
 	});
-
-	// it("event raised on setting a new floor price", async function () {
-	// 	await expect(contractInstance.setFloorPrice(ethers.utils.parseEther("100")))
-	// 		.to.emit(contractInstance, "FloorPriceChanged")
-	// 		.withArgs(ethers.utils.parseEther("100"), ethers.utils.parseEther("2"));
-	// });
 
 	it("set a new floor price", async function () {
 		await contractInstance.setFloorPrice(ethers.utils.parseEther("500"));
