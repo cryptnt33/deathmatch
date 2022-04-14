@@ -15,8 +15,11 @@ describe("test game play contract", async function () {
 		}
 	});
 
-	it("generates a random number on seed", async function () {
-		const random = await contractInstance.random(uuid());
-		console.log(random);
+	it("allows players to purchase one or more nfts", async function () {
+		// await expect(contractInstance.purchaseNfts(0)).to.be.revertedWith("zero requested");
+		// await expect(contractInstance.purchaseNfts(1000)).to.be.revertedWith("too many requested");
+		// await contractInstance.purchaseNfts(1);
+		// expect(await contractInstance.getNfts()).to.equal(1);
+		// expect(await contractInstance.purchaseNfts(5)).to.pass(); // pass
 	});
 });
