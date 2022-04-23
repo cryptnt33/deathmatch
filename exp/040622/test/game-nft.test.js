@@ -63,4 +63,11 @@ describe("test game nft contract", async function () {
 		await expect(contractInstance.mintNfts(4, { value: ethers.utils.parseEther("0") })).to.be.revertedWith("insufficient ether");
 		await expect(contractInstance.mintNfts(6, { value: ethers.utils.parseEther("6") })).to.be.revertedWith("too many requested");
 	});
+
+	it("transfers to the treasury address", async function () {
+		await contractInstance.setTreasuryAddress(accounts[1].address);
+		console.log(await contractInstance.getTreasuryAddress());
+		await contractInstance.safeTransferToken(1);
+		expect(await contractInstance.getTreasuryTokens()).to.equal(1);
+	});
 });

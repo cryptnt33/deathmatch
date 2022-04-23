@@ -13,6 +13,7 @@ contract Deathmatch is OwnableExt {
      */
     // start game
     // enter game
+    //  deposit nft
     // pick winner
     // end game
 }
