@@ -1,7 +1,7 @@
 const { expect, assert } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("test game nft contract", async function () {
+xdescribe("test game nft contract", async function () {
 	let contractInstance;
 	let accounts;
 

@@ -31,7 +31,7 @@ Events:
 
 # Deathmatch game contract
 
-The purpose of this contract is to allow players who bought a Game NFT to enter a game. Game mechanics: Ethers pooled from all players while the game is in progress. At the end of the game 75% of the pooled ether is awarded to a randomly picked winner. The protocol keeps 25% of the pooled ether. A new game is started by the contract owner or a delegated address each day. Players can purchase game tokens and then they play by depositing one or more tokens. A winner is picked by token not by account address - it means that by entering with more than one token a player can increase its chances to win.
+The purpose of this contract is to start, enter, end, and pick a winner for a game. Game mechanics: Ethers pooled from all players while the game is in progress. At the end of the game 75% of the pooled ether is awarded to a randomly picked winner. The protocol keeps 25% of the pooled ether. A new game is started by the contract owner or a delegated address each day. Players can purchase game tokens and then they play by depositing one or more tokens. A winner is picked by token not by account address - it means that by entering with more than one token a player can increase its chances to win.
 
 UX to create a game (admins or delegated addresses only):
 
@@ -40,14 +40,10 @@ UX to create a game (admins or delegated addresses only):
 UX to enter a game (public):
 
 - step 1: pick a game to enter from a list of active games
-- step 2: mint one or more tokens
-  - purchase:
-    - dropdown: 1..mint limit
-    - button: purchase
-    - show a skip button if > 0 tokens in wallet
-- step 3: deposit:
-  - dropdown: 1..number of tokens in wallet
-  - button: deposit (burn the NFT)
+- step 2: deposit ethers
+  - show floor price
+  - dropdown: 1..10 count of tickets
+  - button: deposit (count x floor)
 - step 4: enter the game
 
 Features:
@@ -68,6 +64,7 @@ Features:
 Properties:
 (public getters and setters)
 
+- floor price
 - map of game and players (map(uint=>struct))
   - tokens (struct[])
     - address
@@ -89,4 +86,3 @@ Validation checks:
 
 - transfer the tokens to game contract
 - verify token Id and ether deposited in the treasury
-- verify game contract contains the

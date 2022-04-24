@@ -57,7 +57,7 @@ contract GameNft is ERC721, OwnableExt {
     modifier canMint(uint count) {
         require(count > 0, "zero requested");
         require(count <= _mintLimit, "too many requested");
-        require(count + getCurrentSupply() < _maxSupply, "exceeds max supply");
+        require(count + _tokenIds.current() < _maxSupply, "exceeds max supply");
         _;
     }
 
@@ -108,9 +108,6 @@ contract GameNft is ERC721, OwnableExt {
     }
 
     function mintNfts(uint count) external payable canMint(count) {
-        require(count < _mintLimit, "too many requested");
-        require(count + _tokenIds.current() < _maxSupply, "max supply reached");
-        require(msg.value >= count * _floorPrice, "insufficient ethers");
         for (uint i = 0; i < count; i++) {
             mintNft();
         }
@@ -142,14 +139,14 @@ contract GameNft is ERC721, OwnableExt {
         uint256 tokenId,
         bytes memory _data
     ) public virtual override {
-        require(msg.sender == from, "only owner of the token can transfer")
-        super.safeTransferFrom(from, to, tokenId, "");
+        require(msg.sender == from, "only owner of the token can transfer");
+        super.safeTransferFrom(from, to, tokenId, _data);
     }
 
     // transfer token from the player account to the treasury
     // this is one of the steps to enter a game
     // TODO: move this function to the game contract
-    function transferToTreasury(uint _tokenId) external {
-        super.safeTransferFrom(msg.sender, _treasuryAddress, _tokenId);
-    }
+    // function transferToTreasury(uint _tokenId) external {
+    //     super.safeTransferFrom(msg.sender, _treasuryAddress, _tokenId);
+    // }
 }
