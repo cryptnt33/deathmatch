@@ -17,6 +17,7 @@ contract Deathmatch is OwnableExt {
     struct MatchInfo {
         MatchStatus matchStatus;
         uint timeStarted;
+        uint floorPrice;
     }
 
     mapping(uint => MatchInfo) private matches;
@@ -25,15 +26,23 @@ contract Deathmatch is OwnableExt {
 
     constructor() {}
 
-    function startMatch() external onlyOwner {
+    function startMatch(uint _floorPrice) external ownerOrDelegator {
         gameId.increment();
         uint currentId = gameId.current();
         uint timestamp = block.timestamp;
-        matches[currentId] = MatchInfo(MatchStatus.Started, timestamp);
+        matches[currentId] = MatchInfo(
+            MatchStatus.Started,
+            timestamp,
+            _floorPrice
+        );
         emit MatchStarted(currentId, timestamp);
     }
 
     function getMatchStatus(uint _gameId) public view returns (MatchStatus) {
         return matches[_gameId].matchStatus;
+    }
+
+    function getFloorPrice(uint _gameId) public view returns (uint) {
+        return matches[_gameId].floorPrice;
     }
 }

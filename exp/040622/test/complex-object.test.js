@@ -22,7 +22,7 @@ describe("test complex object contract", async function () {
 		const ts = Date.now();
 		const tx = await contractInstance.setNft("bayc #3124", ts);
 		const reciept = await tx.wait();
-		console.log(reciept.gasUsed, reciept.cumulativeGasUsed);
+		// console.log(reciept.gasUsed, reciept.cumulativeGasUsed);
 		const ob = await contractInstance.getAsset();
 		assert.equal(1, ob.nfts.length);
 		assert.equal(ts, ob.nfts[0].timeAdded);
@@ -34,7 +34,7 @@ describe("test complex object contract", async function () {
 		const ts = Date.now();
 		const tx = await contractInstance.setConsole("whatever", ts);
 		const reciept = await tx.wait();
-		console.log(reciept.gasUsed, reciept.cumulativeGasUsed);
+		// console.log(reciept.gasUsed, reciept.cumulativeGasUsed);
 		const ob = await contractInstance.getAsset();
 		assert.equal(1, ob.consoles.length);
 		assert.equal(ts, ob.consoles[0].timeCreated);
