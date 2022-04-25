@@ -16,7 +16,7 @@ describe("test random gen contract", async function () {
 		}
 	});
 
-	it("generates a random number on seed", async function () {
+	xit("generates a random number on seed", async function () {
 		const random = await contractInstance.random(uuid());
 		console.log(random);
 	});

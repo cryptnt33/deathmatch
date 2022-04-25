@@ -1,14 +1,15 @@
 const { expect, assert } = require("chai");
 const { ethers } = require("hardhat");
+const { BigNumber } = ethers;
 
 describe("test Deathmatch contract", async function () {
-	let contractInstance;
+	let contractFactory, contractInstance;
 	let accounts;
 
 	before("deploy", async function () {
 		try {
-			const contract = await ethers.getContractFactory("Deathmatch");
-			contractInstance = await contract.deploy();
+			contractFactory = await ethers.getContractFactory("Deathmatch");
+			contractInstance = await contractFactory.deploy();
 			await contractInstance.deployed();
 			accounts = await ethers.getSigners();
 			assert.isOk(true);
@@ -17,9 +18,40 @@ describe("test Deathmatch contract", async function () {
 		}
 	});
 
-	describe("should start a match", async function () {
-		it("only admins can start a match", async function () {
-			assert.fail();
+	describe("starting a match...", async function () {
+		it("owners can start a match", async function () {
+			await contractInstance.startMatch();
+			expect(await contractInstance.getMatchStatus(1)).to.equal(1);
+			expect(await contractInstance.isOwner(accounts[0].address)).to.equal(true);
+		});
+		it("non-owners cannot start a match", async function () {
+			// switch accounts
+			const tempInstance = await contractInstance.connect(accounts[2]);
+			expect(await tempInstance.isOwner(accounts[0].address)).to.equal(true);
+			expect(await tempInstance.isOwner(accounts[2].address)).to.equal(false);
+			await expect(tempInstance.startMatch()).to.be.revertedWith("Ownable: caller is not the owner");
+			// match status hasn't changed
+			expect(await contractInstance.getMatchStatus(1)).to.equal(1);
+		});
+		it("more than one match can start at a time", async function () {
+			// wait to capture event emitted
+			const tx1 = await (await contractInstance.startMatch()).wait();
+			const tx2 = await (await contractInstance.startMatch()).wait();
+			// event data
+			const gameId1 = tx1.events[0].args[0].toNumber();
+			const ts1 = tx1.events[0].args[1].toNumber();
+			const gameId2 = tx2.events[0].args[0].toNumber();
+			expect(gameId1).to.equal(2);
+			expect(gameId2).to.equal(3);
+			// some random timestamp to compare against
+			// to test that the returned timestamp is not older than 1s
+			expect(ts1).to.greaterThan(Date.now() / 1000 - 1000);
+			expect(await contractInstance.getMatchStatus(gameId1)).to.equal(1);
+			expect(await contractInstance.getMatchStatus(gameId2)).to.equal(1);
+		});
+		it("default match status on invalid match id", async function () {
+			expect(await contractInstance.getMatchStatus(4)).to.equal(0);
+			expect(await contractInstance.getMatchStatus(0)).to.equal(0);
 		});
 		it("only admins can add delegators", async function () {
 			assert.fail();
