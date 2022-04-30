@@ -18,13 +18,8 @@ contract Deathmatch is OwnableExt {
         uint floorPrice;
     }
 
-    struct DepositInfo {
-        address by;
-        uint amount;
-    }
-
     mapping(string => MatchInfo) private matches;
-    mapping(string => DepositInfo) private deposits;
+    mapping(string => mapping(address => uint)) private deposits;
 
     event MatchStarted(string, uint);
     event WalletChanged(address, address);
@@ -33,6 +28,10 @@ contract Deathmatch is OwnableExt {
     constructor(address payable _wallet) OwnableExt() {
         wallet = _wallet;
     }
+
+    /**
+        functions
+    */
 
     function startMatch(string calldata _gameId, uint _floorPrice)
         external
@@ -52,11 +51,15 @@ contract Deathmatch is OwnableExt {
             msg.value >= matches[_gameId].floorPrice * _count,
             "insufficient ethers"
         );
-        deposits[_gameId] = DepositInfo(msg.sender, msg.value);
+        deposits[_gameId][msg.sender] = msg.value;
         // transfer to the wallet address
         wallet.transfer(msg.value);
         emit FeeDeposited(msg.sender, msg.value);
     }
+
+    /**
+        property getters/setters
+    */
 
     function setWallet(address payable _wallet) external onlyOwner {
         address oldWallet = wallet;
@@ -78,5 +81,13 @@ contract Deathmatch is OwnableExt {
         returns (uint)
     {
         return matches[_gameId].floorPrice;
+    }
+
+    function getDepositAmount(string calldata _gameId, address by)
+        external
+        view
+        returns (uint)
+    {
+        return deposits[_gameId][by];
     }
 }

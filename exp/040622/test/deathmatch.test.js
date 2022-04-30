@@ -1,18 +1,20 @@
-const { expect, assert } = require("chai");
+const chai = require("chai");
+const { expect, assert } = chai;
 const { ethers } = require("hardhat");
 const { v4: uuidv4 } = require("uuid");
 
 describe("test Deathmatch contract", async function () {
-	let contractFactory, contractInstance;
-	let accounts;
-	let pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
-	const gameId = uuidv4();
+	let contractFactory, contractInstance, accounts, walletAccount;
+	const pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
+	const pointSevenFiveEther = ethers.utils.parseUnits("0.75", "ether");
+	const aGameId = uuidv4();
 
 	before("deploy", async function () {
 		try {
 			accounts = await ethers.getSigners();
 			contractFactory = await ethers.getContractFactory("Deathmatch");
-			contractInstance = await contractFactory.deploy(accounts[10].address);
+			walletAccount = accounts[10];
+			contractInstance = await contractFactory.deploy(walletAccount.address);
 			await contractInstance.deployed();
 			assert.isOk(true);
 		} catch (e) {
@@ -22,8 +24,8 @@ describe("test Deathmatch contract", async function () {
 
 	describe("starting a match...", async function () {
 		it("owners can start a match", async function () {
-			await contractInstance.startMatch(gameId, pointFiveEther);
-			expect(await contractInstance.getMatchStatus(gameId)).to.equal(1);
+			await contractInstance.startMatch(aGameId, pointFiveEther);
+			expect(await contractInstance.getMatchStatus(aGameId)).to.equal(1);
 			expect(await contractInstance.isOwner(accounts[0].address)).to.equal(true);
 		});
 		it("non-owners cannot start a match", async function () {
@@ -31,9 +33,9 @@ describe("test Deathmatch contract", async function () {
 			const tempInstance = await contractInstance.connect(accounts[2]);
 			expect(await tempInstance.isOwner(accounts[0].address)).to.equal(true);
 			expect(await tempInstance.isOwner(accounts[2].address)).to.equal(false);
-			await expect(tempInstance.startMatch(gameId, pointFiveEther)).to.be.revertedWith("only owner or delegator");
+			await expect(tempInstance.startMatch(aGameId, pointFiveEther)).to.be.revertedWith("only owner or delegator");
 			// match status hasn't changed
-			expect(await contractInstance.getMatchStatus(gameId)).to.equal(1);
+			expect(await contractInstance.getMatchStatus(aGameId)).to.equal(1);
 		});
 		it("more than one match can start at a time", async function () {
 			// wait to capture event emitted
@@ -87,7 +89,24 @@ describe("test Deathmatch contract", async function () {
 	// all deposits are made to an external multi-sig wallet
 	describe("entering a match...", async function () {
 		it("deposit to an owner-set external account address", async function () {
-			await contractInstance.depositFee(gameId, pointFiveEther);
+			// assert the floor price
+			const fp = await contractInstance.getFloorPrice(aGameId);
+			expect(fp).to.equal(pointFiveEther);
+			// deposit more than or equal to the floor price
+			const walletBalance = await walletAccount.getBalance();
+			const senderBalance = await accounts[0].getBalance();
+			const tx = await (await contractInstance.depositFee(aGameId, 1, { value: pointSevenFiveEther })).wait();
+			// assert the deposit amount is equal to amount sent
+			expect(await contractInstance.getDepositAmount(aGameId, accounts[0].address)).to.equal(pointSevenFiveEther);
+			// assert event fired contained correct "by" and "amount" values
+			expect(tx.events[0].args[0]).to.equal(accounts[0].address);
+			expect(tx.events[0].args[1]).to.equal(pointSevenFiveEther);
+			// assert that the amount of ether in wallet increased by the deposited amount
+			const newWalletBalance = await walletAccount.getBalance();
+			expect(newWalletBalance).to.equal(walletBalance.add(pointSevenFiveEther));
+			// assert that the amount of ether in requester account decreased by the deposited amount
+			const newSenderBalance = await accounts[0].getBalance();
+			assert(newSenderBalance < senderBalance.sub(pointSevenFiveEther));
 		});
 
 		it("only owner can change the external account address", async function () {
