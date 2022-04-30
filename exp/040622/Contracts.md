@@ -49,9 +49,9 @@ UX to enter a game (public):
 Features:
 (external or public functions unless otherwise specified)
 
-- deposit game NFT
+- deposit platform tokens (AVAX, FTM, etc.) to enter a game
 - start
-  - generate game Id
+  - generate a non-intuitive game Id
   - set start time
 - enter
   - use the game Id to enter

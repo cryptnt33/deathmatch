@@ -2,11 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "./OwnableExt.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract Deathmatch is OwnableExt {
-    using Counters for Counters.Counter;
-    Counters.Counter private gameId;
+    address payable private wallet;
 
     enum MatchStatus {
         NotStarted,
@@ -20,29 +18,65 @@ contract Deathmatch is OwnableExt {
         uint floorPrice;
     }
 
-    mapping(uint => MatchInfo) private matches;
+    struct DepositInfo {
+        address by;
+        uint amount;
+    }
 
-    event MatchStarted(uint, uint);
+    mapping(string => MatchInfo) private matches;
+    mapping(string => DepositInfo) private deposits;
 
-    constructor() {}
+    event MatchStarted(string, uint);
+    event WalletChanged(address, address);
+    event FeeDeposited(address, uint);
 
-    function startMatch(uint _floorPrice) external ownerOrDelegator {
-        gameId.increment();
-        uint currentId = gameId.current();
+    constructor(address payable _wallet) OwnableExt() {
+        wallet = _wallet;
+    }
+
+    function startMatch(string calldata _gameId, uint _floorPrice)
+        external
+        ownerOrDelegator
+    {
         uint timestamp = block.timestamp;
-        matches[currentId] = MatchInfo(
+        matches[_gameId] = MatchInfo(
             MatchStatus.Started,
             timestamp,
             _floorPrice
         );
-        emit MatchStarted(currentId, timestamp);
+        emit MatchStarted(_gameId, timestamp);
     }
 
-    function getMatchStatus(uint _gameId) public view returns (MatchStatus) {
+    function depositFee(string calldata _gameId, uint _count) external payable {
+        require(
+            msg.value >= matches[_gameId].floorPrice * _count,
+            "insufficient ethers"
+        );
+        deposits[_gameId] = DepositInfo(msg.sender, msg.value);
+        // transfer to the wallet address
+        wallet.transfer(msg.value);
+        emit FeeDeposited(msg.sender, msg.value);
+    }
+
+    function setWallet(address payable _wallet) external onlyOwner {
+        address oldWallet = wallet;
+        wallet = _wallet;
+        emit WalletChanged(wallet, oldWallet);
+    }
+
+    function getMatchStatus(string calldata _gameId)
+        external
+        view
+        returns (MatchStatus)
+    {
         return matches[_gameId].matchStatus;
     }
 
-    function getFloorPrice(uint _gameId) public view returns (uint) {
+    function getFloorPrice(string calldata _gameId)
+        external
+        view
+        returns (uint)
+    {
         return matches[_gameId].floorPrice;
     }
 }

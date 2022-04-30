@@ -1,17 +1,19 @@
 const { expect, assert } = require("chai");
 const { ethers } = require("hardhat");
+const { v4: uuidv4 } = require("uuid");
 
 describe("test Deathmatch contract", async function () {
 	let contractFactory, contractInstance;
 	let accounts;
 	let pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
+	const gameId = uuidv4();
 
 	before("deploy", async function () {
 		try {
-			contractFactory = await ethers.getContractFactory("Deathmatch");
-			contractInstance = await contractFactory.deploy();
-			await contractInstance.deployed();
 			accounts = await ethers.getSigners();
+			contractFactory = await ethers.getContractFactory("Deathmatch");
+			contractInstance = await contractFactory.deploy(accounts[10].address);
+			await contractInstance.deployed();
 			assert.isOk(true);
 		} catch (e) {
 			assert.fail();
@@ -20,8 +22,8 @@ describe("test Deathmatch contract", async function () {
 
 	describe("starting a match...", async function () {
 		it("owners can start a match", async function () {
-			await contractInstance.startMatch(pointFiveEther);
-			expect(await contractInstance.getMatchStatus(1)).to.equal(1);
+			await contractInstance.startMatch(gameId, pointFiveEther);
+			expect(await contractInstance.getMatchStatus(gameId)).to.equal(1);
 			expect(await contractInstance.isOwner(accounts[0].address)).to.equal(true);
 		});
 		it("non-owners cannot start a match", async function () {
@@ -29,20 +31,22 @@ describe("test Deathmatch contract", async function () {
 			const tempInstance = await contractInstance.connect(accounts[2]);
 			expect(await tempInstance.isOwner(accounts[0].address)).to.equal(true);
 			expect(await tempInstance.isOwner(accounts[2].address)).to.equal(false);
-			await expect(tempInstance.startMatch(pointFiveEther)).to.be.revertedWith("only owner or delegator");
+			await expect(tempInstance.startMatch(gameId, pointFiveEther)).to.be.revertedWith("only owner or delegator");
 			// match status hasn't changed
-			expect(await contractInstance.getMatchStatus(1)).to.equal(1);
+			expect(await contractInstance.getMatchStatus(gameId)).to.equal(1);
 		});
 		it("more than one match can start at a time", async function () {
 			// wait to capture event emitted
-			const tx1 = await (await contractInstance.startMatch(pointFiveEther)).wait();
-			const tx2 = await (await contractInstance.startMatch(pointFiveEther)).wait();
+			const g1 = uuidv4();
+			const g2 = uuidv4();
+			const tx1 = await (await contractInstance.startMatch(g1, pointFiveEther)).wait();
+			const tx2 = await (await contractInstance.startMatch(g2, pointFiveEther)).wait();
 			// event data
-			const gameId1 = tx1.events[0].args[0].toNumber();
+			const gameId1 = tx1.events[0].args[0];
 			const ts1 = tx1.events[0].args[1].toNumber();
-			const gameId2 = tx2.events[0].args[0].toNumber();
-			expect(gameId1).to.equal(2);
-			expect(gameId2).to.equal(3);
+			const gameId2 = tx2.events[0].args[0];
+			expect(gameId1).to.equal(g1);
+			expect(gameId2).to.equal(g2);
 			// some random timestamp to compare against
 			// to test that the returned timestamp is not older than 1s
 			expect(ts1).to.greaterThan(Date.now() / 1000 - 1000);
@@ -50,8 +54,7 @@ describe("test Deathmatch contract", async function () {
 			expect(await contractInstance.getMatchStatus(gameId2)).to.equal(1);
 		});
 		it("default match status on invalid match id", async function () {
-			expect(await contractInstance.getMatchStatus(4)).to.equal(0);
-			expect(await contractInstance.getMatchStatus(0)).to.equal(0);
+			expect(await contractInstance.getMatchStatus("invalid")).to.equal(0);
 		});
 		it("only admins can add delegators", async function () {
 			await contractInstance.addDelegator(accounts[3].address);
@@ -63,26 +66,38 @@ describe("test Deathmatch contract", async function () {
 		});
 		it("admins or delegators can start a match", async function () {
 			// admin
-			const tx1 = await (await contractInstance.startMatch(pointFiveEther)).wait();
-			const gameId1 = tx1.events[0].args[0].toNumber();
+			const tx1 = await (await contractInstance.startMatch(uuidv4(), pointFiveEther)).wait();
+			const gameId1 = tx1.events[0].args[0];
 			expect(await contractInstance.getMatchStatus(gameId1)).to.equal(1);
 			// delegator (added above)
 			const tempInstance = await contractInstance.connect(accounts[3]);
-			const tx2 = await (await tempInstance.startMatch(pointFiveEther)).wait();
-			const gameId2 = tx2.events[0].args[0].toNumber();
+			const tx2 = await (await tempInstance.startMatch(uuidv4(), pointFiveEther)).wait();
+			const gameId2 = tx2.events[0].args[0];
 			expect(await contractInstance.getMatchStatus(gameId1)).to.equal(1);
 			expect(await tempInstance.getMatchStatus(gameId2)).to.equal(1);
 		});
 		it("with a custom floor price", async function () {
-			const tx1 = await (await contractInstance.startMatch(pointFiveEther)).wait();
-			const gameId1 = tx1.events[0].args[0].toNumber();
+			const tx1 = await (await contractInstance.startMatch(uuidv4(), pointFiveEther)).wait();
+			const gameId1 = tx1.events[0].args[0];
 			expect(await contractInstance.getFloorPrice(gameId1)).to.equal(pointFiveEther);
 		});
 	});
 
-	describe("should enter a match", async function () {
+	// any external account can enter a match
+	// all deposits are made to an external multi-sig wallet
+	describe("entering a match...", async function () {
+		it("deposit to an owner-set external account address", async function () {
+			await contractInstance.depositFee(gameId, pointFiveEther);
+		});
+
+		it("only owner can change the external account address", async function () {
+			await (await contractInstance.setWallet(accounts[11].address)).wait();
+			const tempInstance = await contractInstance.connect(accounts[2]);
+			await expect(tempInstance.setWallet(accounts[11].address)).to.be.revertedWith("Ownable: caller is not the owner");
+		});
+
 		it("any external account can enter a match", async function () {
-			assert.fail();
+			// await contractInstance.enterMatch(gameId);
 		});
 		it("can reserve one or more slots", async function () {
 			assert.fail();
