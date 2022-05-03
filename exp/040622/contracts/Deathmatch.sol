@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./OwnableExt.sol";
 
 contract Deathmatch is OwnableExt {
-    address payable private wallet;
+    address payable private externalWallet;
 
     enum MatchStatus {
         NotStarted,
@@ -16,45 +16,89 @@ contract Deathmatch is OwnableExt {
         MatchStatus matchStatus;
         uint timeStarted;
         uint floorPrice;
+        uint maxSlots;
+    }
+
+    struct DepositInfo {
+        uint depositAmount;
+        uint slots;
+        bool deposited;
     }
 
     mapping(string => MatchInfo) private matches;
-    mapping(string => mapping(address => uint)) private deposits;
+    mapping(string => mapping(address => DepositInfo)) private deposits;
+    mapping(string => address[]) private players;
 
     event MatchStarted(string, uint);
     event WalletChanged(address, address);
     event FeeDeposited(address, uint);
 
     constructor(address payable _wallet) OwnableExt() {
-        wallet = _wallet;
+        externalWallet = _wallet;
     }
 
     /**
         functions
     */
 
-    function startMatch(string calldata _gameId, uint _floorPrice)
-        external
-        ownerOrDelegator
-    {
+    // only owners or delegators can start a match
+    function startMatch(
+        string calldata _gameId,
+        uint _floorPrice,
+        uint _maxSlots
+    ) external ownerOrDelegator {
         uint timestamp = block.timestamp;
         matches[_gameId] = MatchInfo(
             MatchStatus.Started,
             timestamp,
-            _floorPrice
+            _floorPrice,
+            _maxSlots
         );
         emit MatchStarted(_gameId, timestamp);
     }
 
-    function depositFee(string calldata _gameId, uint _count) external payable {
-        require(
-            msg.value >= matches[_gameId].floorPrice * _count,
-            "insufficient ethers"
-        );
-        deposits[_gameId][msg.sender] = msg.value;
+    // anyone can deposit fee
+    function depositFee(string calldata _gameId, uint _slots) external payable {
+        MatchInfo memory info = matches[_gameId];
+        require(info.matchStatus == MatchStatus.Started, "match not started");
+        require(_slots >= 1 && _slots <= info.maxSlots, "slot limit exceeded");
+        require(msg.value >= info.floorPrice * _slots, "insufficient deposit");
+
         // transfer to the wallet address
-        wallet.transfer(msg.value);
+        externalWallet.transfer(msg.value);
+        deposits[_gameId][msg.sender] = DepositInfo(msg.value, _slots, true);
         emit FeeDeposited(msg.sender, msg.value);
+    }
+
+    // enter a match one or more times depending on the number of slots purchased
+    // anyone can enter a match
+    // can't enter a match without depositing fee
+    function enterMatch(string calldata _gameId) external {
+        MatchInfo storage matchInfo = matches[_gameId];
+        DepositInfo storage depositInfo = deposits[_gameId][msg.sender];
+        // match must be started
+        require(
+            matchInfo.matchStatus == MatchStatus.Started,
+            "match not started"
+        );
+        // more than one slot
+        require(depositInfo.slots >= 1, "one or more slots required");
+        // deposit should equal floor price * slots
+        require(
+            depositInfo.depositAmount >=
+                depositInfo.slots * matchInfo.floorPrice,
+            "insufficient deposit"
+        );
+        // verify if deposit was called before entering
+        require(depositInfo.deposited, "repeat entry requires deposit");
+        // enter match
+        address[] storage _players = players[_gameId];
+        for (uint i = 0; i < depositInfo.slots; i++) {
+            _players.push(msg.sender);
+        }
+        players[_gameId] = _players;
+        depositInfo.deposited = false;
+        deposits[_gameId][msg.sender] = depositInfo;
     }
 
     /**
@@ -62,9 +106,9 @@ contract Deathmatch is OwnableExt {
     */
 
     function setWallet(address payable _wallet) external onlyOwner {
-        address oldWallet = wallet;
-        wallet = _wallet;
-        emit WalletChanged(wallet, oldWallet);
+        address oldWallet = externalWallet;
+        externalWallet = _wallet;
+        emit WalletChanged(externalWallet, oldWallet);
     }
 
     function getMatchStatus(string calldata _gameId)
@@ -83,11 +127,19 @@ contract Deathmatch is OwnableExt {
         return matches[_gameId].floorPrice;
     }
 
-    function getDepositAmount(string calldata _gameId, address by)
+    function getDepositInfo(string calldata _gameId, address by)
         external
         view
-        returns (uint)
+        returns (DepositInfo memory)
     {
         return deposits[_gameId][by];
+    }
+
+    function getPlayers(string calldata _gameId)
+        external
+        view
+        returns (address[] memory)
+    {
+        return players[_gameId];
     }
 }

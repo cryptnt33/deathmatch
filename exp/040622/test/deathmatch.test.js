@@ -4,7 +4,7 @@ const { ethers } = require("hardhat");
 const { v4: uuidv4 } = require("uuid");
 
 describe("test Deathmatch contract", async function () {
-	let contractFactory, contractInstance, accounts, walletAccount;
+	let contractFactory, contractInstance, accounts, externalWallet;
 	const pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
 	const pointSevenFiveEther = ethers.utils.parseUnits("0.75", "ether");
 	const aGameId = uuidv4();
@@ -13,8 +13,8 @@ describe("test Deathmatch contract", async function () {
 		try {
 			accounts = await ethers.getSigners();
 			contractFactory = await ethers.getContractFactory("Deathmatch");
-			walletAccount = accounts[10];
-			contractInstance = await contractFactory.deploy(walletAccount.address);
+			externalWallet = accounts[10];
+			contractInstance = await contractFactory.deploy(externalWallet.address);
 			await contractInstance.deployed();
 			assert.isOk(true);
 		} catch (e) {
@@ -24,7 +24,7 @@ describe("test Deathmatch contract", async function () {
 
 	describe("starting a match...", async function () {
 		it("owners can start a match", async function () {
-			await contractInstance.startMatch(aGameId, pointFiveEther);
+			await contractInstance.startMatch(aGameId, pointFiveEther, 10);
 			expect(await contractInstance.getMatchStatus(aGameId)).to.equal(1);
 			expect(await contractInstance.isOwner(accounts[0].address)).to.equal(true);
 		});
@@ -33,7 +33,7 @@ describe("test Deathmatch contract", async function () {
 			const tempInstance = await contractInstance.connect(accounts[2]);
 			expect(await tempInstance.isOwner(accounts[0].address)).to.equal(true);
 			expect(await tempInstance.isOwner(accounts[2].address)).to.equal(false);
-			await expect(tempInstance.startMatch(aGameId, pointFiveEther)).to.be.revertedWith("only owner or delegator");
+			await expect(tempInstance.startMatch(aGameId, pointFiveEther, 10)).to.be.revertedWith("only owner or delegator");
 			// match status hasn't changed
 			expect(await contractInstance.getMatchStatus(aGameId)).to.equal(1);
 		});
@@ -41,8 +41,8 @@ describe("test Deathmatch contract", async function () {
 			// wait to capture event emitted
 			const g1 = uuidv4();
 			const g2 = uuidv4();
-			const tx1 = await (await contractInstance.startMatch(g1, pointFiveEther)).wait();
-			const tx2 = await (await contractInstance.startMatch(g2, pointFiveEther)).wait();
+			const tx1 = await (await contractInstance.startMatch(g1, pointFiveEther, 10)).wait();
+			const tx2 = await (await contractInstance.startMatch(g2, pointFiveEther, 10)).wait();
 			// event data
 			const gameId1 = tx1.events[0].args[0];
 			const ts1 = tx1.events[0].args[1].toNumber();
@@ -68,18 +68,18 @@ describe("test Deathmatch contract", async function () {
 		});
 		it("admins or delegators can start a match", async function () {
 			// admin
-			const tx1 = await (await contractInstance.startMatch(uuidv4(), pointFiveEther)).wait();
+			const tx1 = await (await contractInstance.startMatch(uuidv4(), pointFiveEther, 10)).wait();
 			const gameId1 = tx1.events[0].args[0];
 			expect(await contractInstance.getMatchStatus(gameId1)).to.equal(1);
 			// delegator (added above)
 			const tempInstance = await contractInstance.connect(accounts[3]);
-			const tx2 = await (await tempInstance.startMatch(uuidv4(), pointFiveEther)).wait();
+			const tx2 = await (await tempInstance.startMatch(uuidv4(), pointFiveEther, 10)).wait();
 			const gameId2 = tx2.events[0].args[0];
 			expect(await contractInstance.getMatchStatus(gameId1)).to.equal(1);
 			expect(await tempInstance.getMatchStatus(gameId2)).to.equal(1);
 		});
 		it("with a custom floor price", async function () {
-			const tx1 = await (await contractInstance.startMatch(uuidv4(), pointFiveEther)).wait();
+			const tx1 = await (await contractInstance.startMatch(uuidv4(), pointFiveEther, 10)).wait();
 			const gameId1 = tx1.events[0].args[0];
 			expect(await contractInstance.getFloorPrice(gameId1)).to.equal(pointFiveEther);
 		});
@@ -88,25 +88,37 @@ describe("test Deathmatch contract", async function () {
 	// any external account can enter a match
 	// all deposits are made to an external multi-sig wallet
 	describe("entering a match...", async function () {
-		it("deposit to an owner-set external account address", async function () {
+		async function depositTest(slots, depositRequired, gameId, tempContractInstance, walletAccount) {
 			// assert the floor price
-			const fp = await contractInstance.getFloorPrice(aGameId);
+			const fp = await tempContractInstance.getFloorPrice(gameId);
 			expect(fp).to.equal(pointFiveEther);
 			// deposit more than or equal to the floor price
 			const walletBalance = await walletAccount.getBalance();
 			const senderBalance = await accounts[0].getBalance();
-			const tx = await (await contractInstance.depositFee(aGameId, 1, { value: pointSevenFiveEther })).wait();
+			// const slots = 1;
+			// const depositRequired = pointSevenFiveEther.mul(slots);
+			const tx = await (await tempContractInstance.depositFee(gameId, slots, { value: depositRequired })).wait();
 			// assert the deposit amount is equal to amount sent
-			expect(await contractInstance.getDepositAmount(aGameId, accounts[0].address)).to.equal(pointSevenFiveEther);
+			const depositInfo = await tempContractInstance.getDepositInfo(gameId, accounts[0].address);
+			expect(depositInfo.depositAmount).to.equal(depositRequired);
+			expect(depositInfo.slots).to.equal(slots);
 			// assert event fired contained correct "by" and "amount" values
 			expect(tx.events[0].args[0]).to.equal(accounts[0].address);
-			expect(tx.events[0].args[1]).to.equal(pointSevenFiveEther);
+			expect(tx.events[0].args[1]).to.equal(depositRequired);
 			// assert that the amount of ether in wallet increased by the deposited amount
 			const newWalletBalance = await walletAccount.getBalance();
-			expect(newWalletBalance).to.equal(walletBalance.add(pointSevenFiveEther));
+			expect(newWalletBalance).to.equal(walletBalance.add(depositRequired));
 			// assert that the amount of ether in requester account decreased by the deposited amount
+			const gasCost = tx.cumulativeGasUsed.mul(tx.effectiveGasPrice);
 			const newSenderBalance = await accounts[0].getBalance();
-			assert(newSenderBalance < senderBalance.sub(pointSevenFiveEther));
+			expect(newSenderBalance).to.equal(senderBalance.sub(depositRequired).sub(gasCost));
+		}
+
+		it("deposit to an owner provided external account address", async function () {
+			let slots = 1;
+			await depositTest(slots, pointSevenFiveEther.mul(slots), aGameId, contractInstance, externalWallet);
+			slots = 5;
+			await depositTest(slots, pointFiveEther.mul(slots), aGameId, contractInstance, externalWallet);
 		});
 
 		it("only owner can change the external account address", async function () {
@@ -116,16 +128,68 @@ describe("test Deathmatch contract", async function () {
 		});
 
 		it("any external account can enter a match", async function () {
-			// await contractInstance.enterMatch(gameId);
+			const altAccount = accounts[13];
+			// change context to a different account
+			const tempInstance = await contractInstance.connect(altAccount);
+			// find an in-progress game
+			// deposit ethers
+			const gameId = aGameId;
+			const slots = 10;
+			const depositRequired = pointSevenFiveEther.mul(slots);
+			await tempInstance.depositFee(gameId, slots, { value: depositRequired });
+			// enter
+			await tempInstance.enterMatch(gameId);
+			const players = await tempInstance.getPlayers(gameId);
+			// console.log(players);
+			expect(players.length).to.equal(slots);
 		});
-		it("can reserve one or more slots", async function () {
-			assert.fail();
+		it("can purchase a limited number of slots/tickets", async function () {
+			const gameId = aGameId;
+			const slots = 11;
+			const depositRequired = pointSevenFiveEther.mul(slots);
+			await expect(contractInstance.depositFee(gameId, slots, { value: depositRequired })).to.be.revertedWith("slot limit exceeded");
 		});
 		it("deposit ethers in multiples of slots", async function () {
-			assert.fail();
+			const gameId = aGameId;
+			const slots = 5;
+			const depositRequired = pointFiveEther.mul(4);
+			await expect(contractInstance.depositFee(gameId, slots, { value: depositRequired })).to.be.revertedWith("insufficient deposit");
 		});
-		it("can enter a match more than once", async function () {
-			assert.fail();
+		it("require fee deposit each time to enter a match", async function () {
+			// start match
+			const gameId = uuidv4();
+			await contractInstance.startMatch(gameId, pointFiveEther, 10);
+			// deposit ethers
+			const slots = 5;
+			const depositRequired = pointFiveEther.mul(slots);
+			await contractInstance.depositFee(gameId, slots, { value: depositRequired });
+			// enter match
+			await contractInstance.enterMatch(gameId);
+			// expect repeat entries without depositing fee to fail
+			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("repeat entry requires deposit");
+			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("repeat entry requires deposit");
+			const players = await contractInstance.getPlayers(gameId);
+			expect(players.length).to.equal(5);
+		});
+		it("repeat entry with new deposit", async function () {
+			// start match
+			const gameId = uuidv4();
+			await contractInstance.startMatch(gameId, pointFiveEther, 10);
+			// deposit ethers
+			const slots = 5;
+			const depositRequired = pointFiveEther.mul(slots);
+			await contractInstance.depositFee(gameId, slots, { value: depositRequired });
+			// enter match
+			await contractInstance.enterMatch(gameId);
+			// expect repeat entries without depositing fee to fail
+			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("repeat entry requires deposit");
+			// deposit fee again
+			await contractInstance.depositFee(gameId, slots, { value: depositRequired });
+			// allow repeat entry
+			await contractInstance.enterMatch(gameId);
+
+			const players = await contractInstance.getPlayers(gameId);
+			expect(players.length).to.equal(10);
 		});
 		it("can enter a match only if its in progress", async function () {
 			assert.fail();
