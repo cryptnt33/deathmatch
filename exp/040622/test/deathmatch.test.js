@@ -166,8 +166,8 @@ describe("test Deathmatch contract", async function () {
 			// enter match
 			await contractInstance.enterMatch(gameId);
 			// expect repeat entries without depositing fee to fail
-			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("repeat entry requires deposit");
-			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("repeat entry requires deposit");
+			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("re-entry requires deposit");
+			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("re-entry requires deposit");
 			const players = await contractInstance.getPlayers(gameId);
 			expect(players.length).to.equal(5);
 		});
@@ -182,7 +182,7 @@ describe("test Deathmatch contract", async function () {
 			// enter match
 			await contractInstance.enterMatch(gameId);
 			// expect repeat entries without depositing fee to fail
-			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("repeat entry requires deposit");
+			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("re-entry requires deposit");
 			// deposit fee again
 			await contractInstance.depositFee(gameId, slots, { value: depositRequired });
 			// allow repeat entry
@@ -191,8 +191,13 @@ describe("test Deathmatch contract", async function () {
 			const players = await contractInstance.getPlayers(gameId);
 			expect(players.length).to.equal(10);
 		});
+		it("can deposit fee only if the match in progress", async function () {
+			const gameId = uuidv4();
+			await expect(contractInstance.depositFee(gameId, 10)).to.be.revertedWith("match not started");
+		});
 		it("can enter a match only if its in progress", async function () {
-			assert.fail();
+			const gameId = uuidv4();
+			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("match not started");
 		});
 	});
 

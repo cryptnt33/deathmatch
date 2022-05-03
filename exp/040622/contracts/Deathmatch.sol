@@ -90,7 +90,7 @@ contract Deathmatch is OwnableExt {
             "insufficient deposit"
         );
         // verify if deposit was called before entering
-        require(depositInfo.deposited, "repeat entry requires deposit");
+        require(depositInfo.deposited, "re-entry requires deposit");
         // enter match
         address[] storage _players = players[_gameId];
         for (uint i = 0; i < depositInfo.slots; i++) {
