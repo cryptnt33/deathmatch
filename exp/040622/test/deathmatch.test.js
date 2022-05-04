@@ -1,13 +1,12 @@
 const chai = require("chai");
-const { expect, assert } = chai;
-const { ethers } = require("hardhat");
-const { v4: uuidv4 } = require("uuid");
+const {expect, assert} = chai;
+const {ethers} = require("hardhat");
+const {v4: uuidv4} = require("uuid");
 
 describe("test Deathmatch contract", async function () {
 	let contractFactory, contractInstance, accounts, externalWallet;
 	const pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
 	const pointSevenFiveEther = ethers.utils.parseUnits("0.75", "ether");
-	// const aGameId = uuidv4();
 
 	before("deploy", async function () {
 		try {
@@ -104,7 +103,11 @@ describe("test Deathmatch contract", async function () {
 			const senderBalance = await accounts[0].getBalance();
 			// const slots = 1;
 			// const depositRequired = pointSevenFiveEther.mul(slots);
-			const tx = await (await tempContractInstance.depositFee(gameId, slots, { value: depositRequired })).wait();
+			const tx = await (
+				await tempContractInstance.depositFee(gameId, slots, {
+					value: depositRequired,
+				})
+			).wait();
 			// assert the deposit amount is equal to amount sent
 			const depositInfo = await tempContractInstance.getDepositInfo(gameId, accounts[0].address);
 			expect(depositInfo.depositAmount).to.equal(depositRequired);
@@ -142,7 +145,7 @@ describe("test Deathmatch contract", async function () {
 			// deposit
 			const slots = 10;
 			const depositRequired = pointSevenFiveEther.mul(slots);
-			await tempInstance.depositFee(gameId, slots, { value: depositRequired });
+			await tempInstance.depositFee(gameId, slots, {value: depositRequired});
 			// enter
 			await tempInstance.enterMatch(gameId);
 			const players = await tempInstance.getPlayers(gameId);
@@ -154,14 +157,14 @@ describe("test Deathmatch contract", async function () {
 			const slots = 11;
 			const depositRequired = pointSevenFiveEther.mul(slots);
 			await contractInstance.startMatch(gameId, pointFiveEther, 10);
-			await expect(contractInstance.depositFee(gameId, slots, { value: depositRequired })).to.be.revertedWith("slot limit exceeded");
+			await expect(contractInstance.depositFee(gameId, slots, {value: depositRequired})).to.be.revertedWith("slot limit exceeded");
 		});
 		it("deposit ethers in multiples of slots", async function () {
 			const gameId = uuidv4();
 			const slots = 5;
 			const depositRequired = pointFiveEther.mul(4);
 			await contractInstance.startMatch(gameId, pointFiveEther, 10);
-			await expect(contractInstance.depositFee(gameId, slots, { value: depositRequired })).to.be.revertedWith("insufficient deposit");
+			await expect(contractInstance.depositFee(gameId, slots, {value: depositRequired})).to.be.revertedWith("insufficient deposit");
 		});
 		it("can enter a match only once", async function () {
 			// start match
@@ -170,7 +173,9 @@ describe("test Deathmatch contract", async function () {
 			// deposit ethers
 			const slots = 5;
 			const depositRequired = pointFiveEther.mul(slots);
-			await contractInstance.depositFee(gameId, slots, { value: depositRequired });
+			await contractInstance.depositFee(gameId, slots, {
+				value: depositRequired,
+			});
 			// enter match
 			await contractInstance.enterMatch(gameId);
 			// expect repeat entries to fail
@@ -178,6 +183,59 @@ describe("test Deathmatch contract", async function () {
 			await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("re-entry not allowed");
 			const players = await contractInstance.getPlayers(gameId);
 			expect(players.length).to.equal(5);
+		});
+		it("more than one wallet can enter a game", async function () {
+			// start match
+			const gameId = uuidv4();
+			const player1 = await contractInstance.connect(accounts[13]);
+			const player2 = await contractInstance.connect(accounts[14]);
+			await contractInstance.startMatch(gameId, pointFiveEther, 10);
+
+			// account#1 deposit ethers
+			const slots = 5;
+			const depositRequired = pointFiveEther.mul(slots);
+			await player1.depositFee(gameId, slots, {
+				value: depositRequired,
+			});
+			// account#1 enter match
+			await player1.enterMatch(gameId);
+
+			// account#2 deposit ethers
+			await player2.depositFee(gameId, slots, {
+				value: depositRequired,
+			});
+			// account#2 enter match
+			await player2.enterMatch(gameId);
+
+			// assert total number of slots
+			// should be slots times 2 because two players entered the game in this test
+			let players = await player1.getPlayers(gameId);
+			expect(players.length).to.equal(10);
+		});
+		it("calculate approximate gas fee", async function () {
+			const gameId = uuidv4();
+			const tx1 = await (await contractInstance.startMatch(gameId, pointFiveEther, 10)).wait();
+			const slots = 5;
+			const depositRequired = pointFiveEther.mul(slots);
+			const tx2 = await (
+				await contractInstance.depositFee(gameId, slots, {
+					value: depositRequired,
+				})
+			).wait();
+			const tx3 = await (await contractInstance.enterMatch(gameId)).wait();
+			const tx1cost = tx1.cumulativeGasUsed.mul(tx1.effectiveGasPrice);
+			const tx2cost = tx2.cumulativeGasUsed.mul(tx2.effectiveGasPrice);
+			const tx3cost = tx3.cumulativeGasUsed.mul(tx3.effectiveGasPrice);
+			const averageGwei = 50;
+			const averageEthPriceInDollars = 3000;
+			const averageAvaxPriceInDollars = 58;
+			const totalGasUsed = tx1cost.add(tx2cost.add(tx3cost));
+			const costInEth = totalGasUsed * averageGwei * 0.000000001;
+			// fail test if the gas used exceeds this magic number
+			expect(totalGasUsed.toNumber()).to.be.lessThanOrEqual(434130);
+			expect(costInEth).to.be.lessThanOrEqual(0.025);
+			expect(averageEthPriceInDollars * costInEth).to.be.lessThanOrEqual(65.5);
+			expect(averageAvaxPriceInDollars * costInEth).to.be.lessThanOrEqual(1.5);
 		});
 		it("can't enter match without a deposit", async function () {
 			const gameId = uuidv4();
@@ -194,8 +252,54 @@ describe("test Deathmatch contract", async function () {
 		});
 	});
 
-	describe("should pick a match winner", async function () {
+	describe("picking a match winner...", async function () {
+		let gameId, player1Account, player2Account, player3Account;
+
+		before("seed a match with multiple players", async function () {
+			// start match
+			gameId = uuidv4();
+
+			player1Account = accounts[13];
+			player2Account = accounts[14];
+			player3Account = accounts[15];
+
+			const player1 = await contractInstance.connect(player1Account);
+			const player2 = await contractInstance.connect(player2Account);
+			const player3 = await contractInstance.connect(player3Account);
+			await contractInstance.startMatch(gameId, pointFiveEther, 10);
+
+			// account#1 deposit ethers
+			let slots = 5;
+			const depositRequired = pointFiveEther.mul(slots);
+			await player1.depositFee(gameId, slots, {
+				value: depositRequired,
+			});
+			// account#1 enter match
+			await player1.enterMatch(gameId);
+
+			// account#2 deposit ethers
+			slots = 4;
+			await player2.depositFee(gameId, slots, {
+				value: depositRequired,
+			});
+			// account#2 enter match
+			await player2.enterMatch(gameId);
+
+			// account#3 deposit ethers
+			slots = 2;
+			await player3.depositFee(gameId, slots, {
+				value: depositRequired,
+			});
+			// account#2 enter match
+			await player3.enterMatch(gameId);
+		});
 		it("randomly from players in the game", async function () {
+			const fertilizer = uuidv4();
+			const winner = await contractInstance.pickWinner(fertilizer);
+			const playerAddresses = [player1Account.address, player2Account.address, player3Account.address];
+			assert(playerAddresses.indexOf(winner) > -1);
+		});
+		it("only by owner or delegator", async function () {
 			assert.fail();
 		});
 		it("only once", async function () {
@@ -209,7 +313,7 @@ describe("test Deathmatch contract", async function () {
 		});
 	});
 
-	describe("should claim a prize", async function () {
+	describe("claiming a prize...", async function () {
 		it("equal to 75% of the total pooled ether", async function () {
 			assert.fail();
 		});
@@ -233,7 +337,7 @@ describe("test Deathmatch contract", async function () {
 		});
 	});
 
-	describe("should end a match", async function () {
+	describe("ending a match...", async function () {
 		it("only once", async function () {
 			assert.fail();
 		});

@@ -1,0 +1,37 @@
+{
+	"overrides": [
+		{
+			"files": "*.sol",
+			"options": {
+				"printWidth": 320,
+				"tabWidth": 4,
+				"useTabs": true,
+				"singleQuote": false,
+				"bracketSpacing": false,
+				"explicitTypes": "preserve"
+			}
+		},
+		{
+			"files": "*.js",
+			"options": {
+				"printWidth": 320,
+				"tabWidth": 4,
+				"useTabs": true,
+				"singleQuote": false,
+				"bracketSpacing": false,
+				"explicitTypes": "preserve"
+			}
+		},
+		{
+			"files": "*.json",
+			"options": {
+				"printWidth": 320,
+				"tabWidth": 4,
+				"useTabs": true,
+				"singleQuote": false,
+				"bracketSpacing": false,
+				"explicitTypes": "preserve"
+			}
+		}
+	]
+}
