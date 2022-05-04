@@ -60,9 +60,11 @@ contract Deathmatch is OwnableExt {
     // anyone can deposit fee
     function depositFee(string calldata _gameId, uint _slots) external payable {
         MatchInfo memory info = matches[_gameId];
+        DepositInfo memory depositInfo = deposits[_gameId][msg.sender];
         require(info.matchStatus == MatchStatus.Started, "match not started");
         require(_slots >= 1 && _slots <= info.maxSlots, "slot limit exceeded");
         require(msg.value >= info.floorPrice * _slots, "insufficient deposit");
+        require(!depositInfo.deposited, "re-entry not allowed");
 
         // transfer to the wallet address
         externalWallet.transfer(msg.value);
@@ -76,29 +78,34 @@ contract Deathmatch is OwnableExt {
     function enterMatch(string calldata _gameId) external {
         MatchInfo storage matchInfo = matches[_gameId];
         DepositInfo storage depositInfo = deposits[_gameId][msg.sender];
+
         // match must be started
         require(
             matchInfo.matchStatus == MatchStatus.Started,
             "match not started"
         );
-        // more than one slot
-        require(depositInfo.slots >= 1, "one or more slots required");
+
+        // verify if deposit was called before entering
+        require(depositInfo.deposited, "deposit required");
+
         // deposit should equal floor price * slots
         require(
             depositInfo.depositAmount >=
                 depositInfo.slots * matchInfo.floorPrice,
             "insufficient deposit"
         );
-        // verify if deposit was called before entering
-        require(depositInfo.deposited, "re-entry requires deposit");
+
         // enter match
         address[] storage _players = players[_gameId];
+
+        // check for re-entry
+        require(_players.length == 0, "re-entry not allowed");
+
+        // add players by number of slots
         for (uint i = 0; i < depositInfo.slots; i++) {
             _players.push(msg.sender);
         }
         players[_gameId] = _players;
-        depositInfo.deposited = false;
-        deposits[_gameId][msg.sender] = depositInfo;
     }
 
     /**
