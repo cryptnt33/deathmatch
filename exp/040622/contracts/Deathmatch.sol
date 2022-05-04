@@ -48,6 +48,11 @@ contract Deathmatch is OwnableExt {
         uint _maxSlots
     ) external ownerOrDelegator {
         uint timestamp = block.timestamp;
+        MatchInfo memory info = matches[_gameId];
+        require(
+            info.matchStatus == MatchStatus.NotStarted,
+            "match in-progress"
+        );
         matches[_gameId] = MatchInfo(
             MatchStatus.Started,
             timestamp,
