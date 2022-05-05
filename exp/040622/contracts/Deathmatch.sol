@@ -20,7 +20,6 @@ contract Deathmatch is OwnableExt {
 		uint timeEnded;
 		uint floorPrice;
 		uint maxSlotsPerWallet;
-		string seedPool;
 	}
 
 	struct DepositInfo {
@@ -33,15 +32,28 @@ contract Deathmatch is OwnableExt {
 	mapping(string => mapping(address => DepositInfo)) private deposits;
 	mapping(string => address[]) private players;
 	mapping(string => mapping(address => uint)) private wallets;
+	mapping(string => string) private randomSeeds;
+	mapping(string => uint) private prizePools;
+	mapping(string => mapping(address => uint)) winnings;
 
 	event MatchStarted(string, uint);
 	event WalletChanged(address, address);
-	event FeeDeposited(address, uint);
-	event WinnerPicked(address, uint);
+	event FeeDeposited(string, address, uint);
+	event WinnerPicked(string, address, uint, uint);
 
 	constructor(address payable _wallet) OwnableExt() {
 		rando = new Rando();
 		externalWallet = _wallet;
+	}
+
+	/**
+        modifiers
+     */
+
+	modifier seedLength(string calldata seed) {
+		uint length = bytes(seed).length;
+		require(length > 5 && length < 10, "invalid seed length");
+		_;
 	}
 
 	/**
@@ -54,11 +66,12 @@ contract Deathmatch is OwnableExt {
 		uint _floorPrice,
 		uint _maxSlots,
 		string calldata randomSeed
-	) external ownerOrDelegator {
+	) external ownerOrDelegator seedLength(randomSeed) {
 		uint timestamp = block.timestamp;
 		MatchInfo memory info = matches[_gameId];
 		require(info.matchStatus == MatchStatus.NotStarted, "match in-progress");
-		matches[_gameId] = MatchInfo(MatchStatus.Started, timestamp, 0, _floorPrice, _maxSlots, randomSeed);
+		matches[_gameId] = MatchInfo(MatchStatus.Started, timestamp, 0, _floorPrice, _maxSlots);
+		randomSeeds[_gameId] = randomSeed;
 		emit MatchStarted(_gameId, timestamp);
 	}
 
@@ -68,19 +81,20 @@ contract Deathmatch is OwnableExt {
 		DepositInfo memory depositInfo = deposits[_gameId][msg.sender];
 		require(info.matchStatus == MatchStatus.Started, "match not started");
 		require(_slots >= 1 && _slots <= info.maxSlotsPerWallet, "slot limit exceeded");
-		require(msg.value >= info.floorPrice * _slots, "insufficient deposit");
+		require(msg.value == info.floorPrice * _slots, "incorrect deposit");
 		require(!depositInfo.deposited, "re-entry not allowed");
 
 		// transfer to the wallet address
 		deposits[_gameId][msg.sender] = DepositInfo(msg.value, _slots, true);
+		prizePools[_gameId] += msg.value;
 		externalWallet.transfer(msg.value);
-		emit FeeDeposited(msg.sender, msg.value);
+		emit FeeDeposited(_gameId, msg.sender, msg.value);
 	}
 
 	// enter a match one or more times depending on the number of slots purchased
 	// anyone can enter a match
 	// can't enter a match without depositing fee
-	function enterMatch(string calldata _gameId, string calldata randomSeed) external {
+	function enterMatch(string calldata _gameId, string calldata randomSeed) external seedLength(randomSeed) {
 		MatchInfo storage matchInfo = matches[_gameId];
 		DepositInfo storage depositInfo = deposits[_gameId][msg.sender];
 
@@ -91,7 +105,7 @@ contract Deathmatch is OwnableExt {
 		require(depositInfo.deposited, "deposit required");
 
 		// deposit should equal floor price * slots
-		require(depositInfo.depositAmount >= depositInfo.slots * matchInfo.floorPrice, "insufficient deposit");
+		require(depositInfo.depositAmount == depositInfo.slots * matchInfo.floorPrice, "incorrect deposit");
 
 		// enter match
 		address[] storage _players = players[_gameId];
@@ -106,16 +120,23 @@ contract Deathmatch is OwnableExt {
 		}
 		players[_gameId] = _players;
 		wallets[_gameId][msg.sender] = 1;
-		matchInfo.seedPool = rando.concat(matchInfo.seedPool, randomSeed);
+		randomSeeds[_gameId] = rando.concat(randomSeeds[_gameId], randomSeed);
 	}
 
-	function pickWinner(string calldata _gameId, string calldata randomSeed) external ownerOrDelegator {
-		MatchInfo storage matchInfo = matches[_gameId];
+	function pickWinner(string calldata _gameId, string calldata randomSeed) external ownerOrDelegator seedLength(randomSeed) {
+		MatchInfo memory matchInfo = matches[_gameId];
 		address[] memory _players = players[_gameId];
-		uint largeNumber = rando.random(rando.concat(matchInfo.seedPool, randomSeed));
+		uint largeNumber = rando.random(rando.concat(randomSeeds[_gameId], randomSeed));
 		uint index = largeNumber % _players.length;
 		// find a way to shuffle because addresses are added sequentially in the slots loop
-		emit WinnerPicked(_players[index], index);
+		address winner = _players[index];
+		// set aside the winning amount
+		uint winningAmount = (prizePools[_gameId] * 4) / 5;
+		winnings[_gameId][winner] = winningAmount;
+		matchInfo.matchStatus = MatchStatus.Finished;
+		matchInfo.timeEnded = block.timestamp;
+		matches[_gameId] = matchInfo;
+		emit WinnerPicked(_gameId, winner, index, winningAmount);
 	}
 
 	/**
@@ -142,5 +163,9 @@ contract Deathmatch is OwnableExt {
 
 	function getPlayers(string calldata _gameId) external view returns (address[] memory) {
 		return players[_gameId];
+	}
+
+	function getPrizePool(string calldata _gameId) external view returns (uint) {
+		return prizePools[_gameId];
 	}
 }
