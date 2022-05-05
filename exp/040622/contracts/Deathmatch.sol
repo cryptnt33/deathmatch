@@ -2,9 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "./OwnableExt.sol";
+import "./Rando.sol";
 
 contract Deathmatch is OwnableExt {
 	address payable private externalWallet;
+	Rando private rando;
 
 	enum MatchStatus {
 		NotStarted,
@@ -18,6 +20,7 @@ contract Deathmatch is OwnableExt {
 		uint timeEnded;
 		uint floorPrice;
 		uint maxSlotsPerWallet;
+		string seedPool;
 	}
 
 	struct DepositInfo {
@@ -34,8 +37,10 @@ contract Deathmatch is OwnableExt {
 	event MatchStarted(string, uint);
 	event WalletChanged(address, address);
 	event FeeDeposited(address, uint);
+	event WinnerPicked(address, uint);
 
 	constructor(address payable _wallet) OwnableExt() {
+		rando = new Rando();
 		externalWallet = _wallet;
 	}
 
@@ -47,12 +52,13 @@ contract Deathmatch is OwnableExt {
 	function startMatch(
 		string calldata _gameId,
 		uint _floorPrice,
-		uint _maxSlots
+		uint _maxSlots,
+		string calldata randomSeed
 	) external ownerOrDelegator {
 		uint timestamp = block.timestamp;
 		MatchInfo memory info = matches[_gameId];
 		require(info.matchStatus == MatchStatus.NotStarted, "match in-progress");
-		matches[_gameId] = MatchInfo(MatchStatus.Started, timestamp, 0, _floorPrice, _maxSlots);
+		matches[_gameId] = MatchInfo(MatchStatus.Started, timestamp, 0, _floorPrice, _maxSlots, randomSeed);
 		emit MatchStarted(_gameId, timestamp);
 	}
 
@@ -74,7 +80,7 @@ contract Deathmatch is OwnableExt {
 	// enter a match one or more times depending on the number of slots purchased
 	// anyone can enter a match
 	// can't enter a match without depositing fee
-	function enterMatch(string calldata _gameId) external {
+	function enterMatch(string calldata _gameId, string calldata randomSeed) external {
 		MatchInfo storage matchInfo = matches[_gameId];
 		DepositInfo storage depositInfo = deposits[_gameId][msg.sender];
 
@@ -100,6 +106,16 @@ contract Deathmatch is OwnableExt {
 		}
 		players[_gameId] = _players;
 		wallets[_gameId][msg.sender] = 1;
+		matchInfo.seedPool = rando.concat(matchInfo.seedPool, randomSeed);
+	}
+
+	function pickWinner(string calldata _gameId, string calldata randomSeed) external ownerOrDelegator {
+		MatchInfo storage matchInfo = matches[_gameId];
+		address[] memory _players = players[_gameId];
+		uint largeNumber = rando.random(rando.concat(matchInfo.seedPool, randomSeed));
+		uint index = largeNumber % _players.length;
+		// find a way to shuffle because addresses are added sequentially in the slots loop
+		emit WinnerPicked(_players[index], index);
 	}
 
 	/**
