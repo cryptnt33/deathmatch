@@ -1,63 +1,18 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "./OwnableExt.sol";
-import "./Rando.sol";
+import "./Matchbase.sol";
+import "./ArrayUtils.sol";
 
-contract Deathmatch is OwnableExt {
-	address payable private externalWallet;
-	Rando private rando;
+contract Deathmatch is Matchbase {
+	ArrayUtils private arrayUtils;
 
-	enum MatchStatus {
-		NotStarted,
-		Started,
-		Finished
-	}
-
-	struct MatchInfo {
-		MatchStatus matchStatus;
-		uint timeStarted;
-		uint timeEnded;
-		uint floorPrice;
-		uint maxSlotsPerWallet;
-	}
-
-	struct DepositInfo {
-		uint depositAmount;
-		uint slots;
-		bool deposited;
-	}
-
-	mapping(string => MatchInfo) private matches;
-	mapping(string => mapping(address => DepositInfo)) private deposits;
-	mapping(string => address[]) private players;
-	mapping(string => mapping(address => uint)) private wallets;
-	mapping(string => string) private randomSeeds;
-	mapping(string => uint) private prizePools;
-	mapping(string => mapping(address => uint)) winnings;
-
-	event MatchStarted(string, uint);
-	event WalletChanged(address, address);
-	event FeeDeposited(string, address, uint);
-	event WinnerPicked(string, address, uint, uint);
-
-	constructor(address payable _wallet) OwnableExt() {
-		rando = new Rando();
-		externalWallet = _wallet;
+	constructor(address payable _wallet) Matchbase(_wallet) {
+		arrayUtils = new ArrayUtils();
 	}
 
 	/**
-        modifiers
-     */
-
-	modifier seedLength(string calldata seed) {
-		uint length = bytes(seed).length;
-		require(length > 5 && length < 10, "invalid seed length");
-		_;
-	}
-
-	/**
-        functions
+        external/public functions
     */
 
 	// only owners or delegators can start a match
@@ -70,7 +25,7 @@ contract Deathmatch is OwnableExt {
 		uint timestamp = block.timestamp;
 		MatchInfo memory info = matches[_gameId];
 		require(info.matchStatus == MatchStatus.NotStarted, "match in-progress");
-		matches[_gameId] = MatchInfo(MatchStatus.Started, timestamp, 0, _floorPrice, _maxSlots);
+		matches[_gameId] = MatchInfo(MatchStatus.Started, timestamp, 0, _floorPrice, _maxSlots, msg.sender);
 		randomSeeds[_gameId] = randomSeed;
 		emit MatchStarted(_gameId, timestamp);
 	}
@@ -123,49 +78,26 @@ contract Deathmatch is OwnableExt {
 		randomSeeds[_gameId] = rando.concat(randomSeeds[_gameId], randomSeed);
 	}
 
-	function pickWinner(string calldata _gameId, string calldata randomSeed) external ownerOrDelegator seedLength(randomSeed) {
+	// only by the contract owner or the one that started this match
+	// can only call once because the match end ended after picking a winner
+	function pickWinner(string calldata _gameId, string calldata _randomSeed) external virtual ownerOrStarter(_gameId) {
 		MatchInfo memory matchInfo = matches[_gameId];
+		require(matchInfo.matchStatus == MatchStatus.Started, "match ended");
 		address[] memory _players = players[_gameId];
-		uint largeNumber = rando.random(rando.concat(randomSeeds[_gameId], randomSeed));
+		require(_players.length > 0, "no players");
+		uint largeNumber = rando.random(rando.concat(randomSeeds[_gameId], _randomSeed));
 		uint index = largeNumber % _players.length;
-		// find a way to shuffle because addresses are added sequentially in the slots loop
+		require(index >= 0 && index < _players.length, "invalid index");
+		// shuffle addresses
+		arrayUtils.shuffleAddresses(_players);
 		address winner = _players[index];
 		// set aside the winning amount
+		require(prizePools[_gameId] > 0, "prize pool is empty");
 		uint winningAmount = (prizePools[_gameId] * 4) / 5;
 		winnings[_gameId][winner] = winningAmount;
 		matchInfo.matchStatus = MatchStatus.Finished;
 		matchInfo.timeEnded = block.timestamp;
 		matches[_gameId] = matchInfo;
 		emit WinnerPicked(_gameId, winner, index, winningAmount);
-	}
-
-	/**
-        property getters/setters
-    */
-
-	function setWallet(address payable _wallet) external onlyOwner {
-		address oldWallet = externalWallet;
-		externalWallet = _wallet;
-		emit WalletChanged(externalWallet, oldWallet);
-	}
-
-	function getMatchStatus(string calldata _gameId) external view returns (MatchStatus) {
-		return matches[_gameId].matchStatus;
-	}
-
-	function getFloorPrice(string calldata _gameId) external view returns (uint) {
-		return matches[_gameId].floorPrice;
-	}
-
-	function getDepositInfo(string calldata _gameId, address by) external view returns (DepositInfo memory) {
-		return deposits[_gameId][by];
-	}
-
-	function getPlayers(string calldata _gameId) external view returns (address[] memory) {
-		return players[_gameId];
-	}
-
-	function getPrizePool(string calldata _gameId) external view returns (uint) {
-		return prizePools[_gameId];
 	}
 }

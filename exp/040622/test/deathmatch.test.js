@@ -8,12 +8,36 @@ describe("test Deathmatch contract", async function () {
 	const pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
 	const pointSevenFiveEther = ethers.utils.parseUnits("0.75", "ether");
 	const randomSeed = uuidv4().substring(0, 6);
+	let gameId;
+
+	async function setupMatches(players) {
+		try {
+			gameId = uuidv4();
+
+			// start match
+			await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+
+			for (i = 0; i < players.length; i++) {
+				const player = await contractInstance.connect(players[i].account);
+				// deposit fee
+				await player.depositFee(gameId, players[i].slots, {
+					value: pointFiveEther.mul(players[i].slots),
+				});
+				// enter match
+				await player.enterMatch(gameId, randomSeed);
+				assert.isOk(true);
+			}
+		} catch (e) {
+			console.log(e);
+			assert.fail();
+		}
+	}
 
 	before("deploy", async function () {
 		try {
 			accounts = await ethers.getSigners();
-			contractFactory = await ethers.getContractFactory("Deathmatch");
 			externalWallet = accounts[10];
+			contractFactory = await ethers.getContractFactory("Deathmatch");
 			contractInstance = await contractFactory.deploy(externalWallet.address);
 			await contractInstance.deployed();
 			assert.isOk(true);
@@ -233,6 +257,7 @@ describe("test Deathmatch contract", async function () {
 			const averageAvaxPriceInDollars = 58;
 			const totalGasUsed = tx1cost.add(tx2cost.add(tx3cost));
 			const costInEth = totalGasUsed * averageGwei * 0.000000001;
+			console.log(totalGasUsed);
 			// fail test if the gas used exceeds this magic number
 			expect(totalGasUsed.toNumber()).to.be.lessThanOrEqual(434130);
 			expect(costInEth).to.be.lessThanOrEqual(0.025);
@@ -255,47 +280,23 @@ describe("test Deathmatch contract", async function () {
 	});
 
 	describe("picking a match winner...", async function () {
-		let gameId, player1Account, player2Account, player3Account;
-
+		let players;
 		before("seed a match with multiple players", async function () {
-			// start match
-			gameId = uuidv4();
-
-			player1Account = accounts[13];
-			player2Account = accounts[14];
-			player3Account = accounts[15];
-
-			const player1 = await contractInstance.connect(player1Account);
-			const player2 = await contractInstance.connect(player2Account);
-			const player3 = await contractInstance.connect(player3Account);
-			await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
-
-			// account#1 deposit ethers
-			let slots = 5;
-			let depositRequired = pointFiveEther.mul(slots);
-			await player1.depositFee(gameId, slots, {
-				value: depositRequired,
-			});
-			// account#1 enter match
-			await player1.enterMatch(gameId, randomSeed);
-
-			// account#2 deposit ethers
-			slots = 4;
-			depositRequired = pointFiveEther.mul(slots);
-			await player2.depositFee(gameId, slots, {
-				value: depositRequired,
-			});
-			// account#2 enter match
-			await player2.enterMatch(gameId, randomSeed);
-
-			// account#3 deposit ethers
-			slots = 2;
-			depositRequired = pointFiveEther.mul(slots);
-			await player3.depositFee(gameId, slots, {
-				value: depositRequired,
-			});
-			// account#2 enter match
-			await player3.enterMatch(gameId, randomSeed);
+			players = [
+				{
+					account: accounts[13],
+					slots: 2,
+				},
+				{
+					account: accounts[14],
+					slots: 4,
+				},
+				{
+					account: accounts[15],
+					slots: 5,
+				},
+			];
+			await setupMatches(players);
 		});
 		it("calculate total prize pool", async function () {
 			const prizePool = await contractInstance.getPrizePool(gameId);
@@ -307,8 +308,8 @@ describe("test Deathmatch contract", async function () {
 			const winner = tx.events[0].args[1];
 			const index = tx.events[0].args[2].toNumber();
 			const prizeAmount = tx.events[0].args[3];
-			console.log(tx.cumulativeGasUsed.mul(tx.effectiveGasPrice));
-			const playerAddresses = [player1Account.address, player2Account.address, player3Account.address];
+			// console.log(tx.cumulativeGasUsed.mul(tx.effectiveGasPrice));
+			const playerAddresses = [players[0].account.address, players[1].account.address, players[2].account.address];
 			const totalSlots = await contractInstance.getPlayers(gameId);
 			assert(playerAddresses.indexOf(winner) > -1);
 			// console.log(index, totalSlots.length);
@@ -316,21 +317,50 @@ describe("test Deathmatch contract", async function () {
 			expect(prizeAmount).to.equal(pointFiveEther.mul(11).mul(4).div(5));
 			// console.log(ethers.utils.formatEther(prizeAmount));
 		});
-		it("only by owner or delegator", async function () {
-			assert.fail();
+		it("only by owner or starter", async function () {
+			// change the context to some account other than the one that started
+			const tempPlayer = await contractInstance.connect(players[0].account);
+			await expect(tempPlayer.pickWinner(gameId, randomSeed)).to.be.revertedWith("only owner or starter");
 		});
-		it("only once", async function () {
-			assert.fail();
+		it("only once after the match has started", async function () {
+			await expect(contractInstance.pickWinner(gameId, randomSeed)).to.be.revertedWith("match ended");
 		});
-		it("only one player", async function () {
-			assert.fail();
-		});
-		it("only from a game in progress", async function () {
-			assert.fail();
+		xit("shuffle", async function () {
+			const preShuffle1 = [1, 1, 1, 2, 3, 3, 3, 4, 4, 4, 4, 5, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7];
+			const preShuffle2 = [1];
+			const preShuffle3 = [];
+			postShuffle = await contractInstance.shuffle(preShuffle1);
+			expect(postShuffle).to.not.equal(preShuffle1);
+			postShuffle = await contractInstance.shuffle(preShuffle2);
+			expect(postShuffle).to.not.equal(preShuffle2);
+			try {
+				postShuffle = await contractInstance.shuffle(preShuffle3);
+				assert.fail();
+			} catch {
+				assert.isOk(true);
+			}
 		});
 	});
 
 	describe("claiming a prize...", async function () {
+		let players;
+		before("seed a match with multiple players", async function () {
+			players = [
+				{
+					account: accounts[13],
+					slots: 2,
+				},
+				{
+					account: accounts[14],
+					slots: 4,
+				},
+				{
+					account: accounts[15],
+					slots: 5,
+				},
+			];
+			await setupMatches(players);
+		});
 		it("equal to 75% of the total pooled ether", async function () {
 			assert.fail();
 		});
