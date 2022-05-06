@@ -2,35 +2,13 @@ const chai = require("chai");
 const {expect, assert} = chai;
 const {ethers} = require("hardhat");
 const {v4: uuidv4} = require("uuid");
+const {setupMatches} = require("./setup");
 
 describe("claiming a prize...", async function () {
 	let contractFactory, contractInstance, accounts, externalWallet;
 	const pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
 	const randomSeed = uuidv4().substring(0, 6);
 	let gameId, players;
-
-	async function setupMatches(players) {
-		try {
-			gameId = uuidv4();
-
-			// start match
-			await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
-
-			for (i = 0; i < players.length; i++) {
-				const player = await contractInstance.connect(players[i].account);
-				// deposit fee
-				await player.depositFee(gameId, players[i].slots, {
-					value: pointFiveEther.mul(players[i].slots),
-				});
-				// enter match
-				await player.enterMatch(gameId, randomSeed);
-				assert.isOk(true);
-			}
-		} catch (e) {
-			console.log(e);
-			assert.fail();
-		}
-	}
 
 	before("deploy", async function () {
 		try {
@@ -54,12 +32,12 @@ describe("claiming a prize...", async function () {
 				},
 			];
 
-			await setupMatches(players);
+			gameId = await setupMatches(contractInstance, players, pointFiveEther, 10, randomSeed);
 
-			assert.isOk(true);
+			// assert.isOk(true);
 		} catch (e) {
 			console.log(e);
-			assert.fail();
+			// assert.fail();
 		}
 	});
 	it("equal to 75% of the total pooled ether", async function () {
