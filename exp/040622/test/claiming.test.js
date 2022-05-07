@@ -10,6 +10,23 @@ describe("claiming a prize...", async function () {
 	const randomSeed = uuidv4().substring(0, 6);
 	let gameId, players;
 
+	addressToSigner = function (address) {
+		for (i = 0; i < accounts.length; i++) {
+			if (accounts[i].address == address) {
+				return accounts[i];
+			}
+		}
+		throw new Error("not found");
+	};
+
+	pickWinner = async function () {
+		const tx = await (await contractInstance.pickWinner(gameId, randomSeed)).wait();
+		const winner = tx.events[0].args[1];
+		const index = tx.events[0].args[2].toNumber();
+		const prizeAmount = tx.events[0].args[3];
+		return {winner, index, prizeAmount};
+	};
+
 	before("deploy", async function () {
 		try {
 			accounts = await ethers.getSigners();
@@ -31,17 +48,25 @@ describe("claiming a prize...", async function () {
 					slots: 5,
 				},
 			];
-
+			// console.log(accounts[0]);
 			gameId = await setupMatches(contractInstance, players, pointFiveEther, 10, randomSeed);
 
-			// assert.isOk(true);
+			assert.isOk(true);
 		} catch (e) {
 			console.log(e);
-			// assert.fail();
+			assert.fail();
 		}
 	});
 	it("equal to 75% of the total pooled ether", async function () {
-		assert.fail();
+		// find a winner
+		const {winner, index, prizeAmount} = await pickWinner();
+		// switch context to winner
+		const player = await contractInstance.connect(addressToSigner(winner));
+		expect(await player.getPrizeAmount(gameId, winner)).to.equal(prizeAmount);
+		const walletBalance = await contractInstance.getBalance();
+		await player.claimPrize(gameId);
+		const newWalletBalance = await contractInstance.getBalance();
+		expect(walletBalance).to.equal(newWalletBalance.add(prizeAmount));
 	});
 	it("verify 25% of the pooled ether stayed in the treasury", async function () {
 		assert.fail();

@@ -60,6 +60,12 @@ describe("picking a match winner...", async function () {
 		assert(index > -1 && index <= totalSlots.length);
 		expect(prizeAmount).to.equal(pointFiveEther.mul(11).mul(4).div(5));
 		// console.log(ethers.utils.formatEther(prizeAmount));
+		// remaining balance is sent to the external wallet each time pickWinner is called
+		const walletBalance = await externalWallet.getBalance();
+		const prizePool = await contractInstance.getPrizePool(gameId);
+		// the wallet already contains 10K Ethers
+		// console.log(ethers.utils.formatEther(prizePool), ethers.utils.formatEther(walletBalance), ethers.utils.formatEther(prizeAmount));
+		assert(walletBalance.sub(ethers.utils.parseUnits("10000", "ether")) >= prizePool.sub(prizeAmount));
 	});
 	it("only by owner or starter", async function () {
 		// change the context to some account other than the one that started

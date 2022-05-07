@@ -36,11 +36,13 @@ contract Matchbase is OwnableExt {
 	mapping(string => string) internal randomSeeds;
 	mapping(string => uint) internal prizePools;
 	mapping(string => mapping(address => uint)) internal winnings;
+	mapping(string => mapping(address => uint)) internal claims;
 
 	event MatchStarted(string, uint);
 	event WalletChanged(address, address);
 	event FeeDeposited(string, address, uint);
 	event WinnerPicked(string, address, uint, uint);
+	event PrizeClaimed(string, address, uint);
 
 	constructor(address payable _wallet) OwnableExt() {
 		rando = new Rando();
@@ -53,7 +55,7 @@ contract Matchbase is OwnableExt {
 
 	modifier seedLength(string calldata seed) {
 		uint length = bytes(seed).length;
-		require(length > 5 && length < 10, "invalid seed length");
+		require(length > 5 && length < 10, "seed length");
 		_;
 	}
 
@@ -90,5 +92,13 @@ contract Matchbase is OwnableExt {
 
 	function getPrizePool(string calldata _gameId) external view returns (uint) {
 		return prizePools[_gameId];
+	}
+
+	function getPrizeAmount(string calldata _gameId, address winner) external view returns (uint) {
+		return winnings[_gameId][winner];
+	}
+
+	function getBalance() external view returns (uint) {
+		return address(this).balance;
 	}
 }

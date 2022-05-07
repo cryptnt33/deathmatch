@@ -25,12 +25,12 @@ describe("entering a match...", async function () {
 		}
 	});
 
-	async function depositTest(slots, depositRequired, gameId, tempContractInstance, walletAccount) {
+	async function depositTest(slots, depositRequired, gameId, tempContractInstance) {
 		// assert the floor price
 		const fp = await tempContractInstance.getFloorPrice(gameId);
 		expect(fp).to.equal(pointFiveEther);
 		// deposit more than or equal to the floor price
-		const walletBalance = await walletAccount.getBalance();
+		const walletBalance = await tempContractInstance.getBalance();
 		const senderBalance = await accounts[0].getBalance();
 		// const slots = 1;
 		// const depositRequired = pointSevenFiveEther.mul(slots);
@@ -47,7 +47,7 @@ describe("entering a match...", async function () {
 		expect(tx.events[0].args[1]).to.equal(accounts[0].address);
 		expect(tx.events[0].args[2]).to.equal(depositRequired);
 		// assert that the amount of ether in wallet increased by the deposited amount
-		const newWalletBalance = await walletAccount.getBalance();
+		const newWalletBalance = await tempContractInstance.getBalance();
 		expect(newWalletBalance).to.equal(walletBalance.add(depositRequired));
 		// assert that the amount of ether in requester account decreased by the deposited amount
 		const gasCost = tx.cumulativeGasUsed.mul(tx.effectiveGasPrice);
@@ -55,11 +55,11 @@ describe("entering a match...", async function () {
 		expect(newSenderBalance).to.equal(senderBalance.sub(depositRequired).sub(gasCost));
 	}
 
-	it("deposit to an owner provided external account address", async function () {
+	it("deposit to contract address", async function () {
 		const gameId = uuidv4();
 		const slots = 1;
 		await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
-		await depositTest(slots, pointFiveEther.mul(slots), gameId, contractInstance, externalWallet);
+		await depositTest(slots, pointFiveEther.mul(slots), gameId, contractInstance);
 	});
 	it("only owner can change the external account address", async function () {
 		await (await contractInstance.setWallet(accounts[11].address)).wait();

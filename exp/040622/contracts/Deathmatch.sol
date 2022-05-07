@@ -42,7 +42,7 @@ contract Deathmatch is Matchbase {
 		// transfer to the wallet address
 		deposits[_gameId][msg.sender] = DepositInfo(msg.value, _slots, true);
 		prizePools[_gameId] += msg.value;
-		externalWallet.transfer(msg.value);
+		// externalWallet.transfer(msg.value);
 		emit FeeDeposited(_gameId, msg.sender, msg.value);
 	}
 
@@ -98,6 +98,25 @@ contract Deathmatch is Matchbase {
 		matchInfo.matchStatus = MatchStatus.Finished;
 		matchInfo.timeEnded = block.timestamp;
 		matches[_gameId] = matchInfo;
+		// transfer the remaining amount to external wallet
+		externalWallet.transfer(prizePools[_gameId] - winningAmount);
 		emit WinnerPicked(_gameId, winner, index, winningAmount);
+	}
+
+	function claimPrize(string calldata _gameId) external payable {
+		// forbid smart contracts from calling this function
+		// require(msg.sender != tx.origin, "forbidden");
+		uint prizeAmount = winnings[_gameId][msg.sender];
+		// ensure caller is the winner
+		require(prizeAmount > 0, "unauthorized");
+		// ensure this prize hasn't been claimed before
+		require(claims[_gameId][msg.sender] == 0, "duplicate claim");
+		claims[_gameId][msg.sender] = prizeAmount;
+		// transfer from the contract to the winner address
+		address payer = address(this);
+		require(payer.balance >= prizeAmount, "insufficient funds");
+		address payable winner = payable(msg.sender);
+		winner.transfer(prizeAmount);
+		emit PrizeClaimed(_gameId, msg.sender, prizeAmount);
 	}
 }
