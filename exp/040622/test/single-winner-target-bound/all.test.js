@@ -1,37 +1,76 @@
-SingleWinnerTargetBoundStartStrategy = function (args) {
-	execute = async function () {
-		console.log(args);
-	};
-	return {execute};
-};
+class BaseArgs {
+	gameId = "";
+}
 
-SingleWinnerTargetBoundDepositStrategy = function (args) {
-	execute = async function () {
-		console.log(args);
-	};
-	return {execute};
-};
+class SingleWinnerTargetBoundStartArgs extends BaseArgs {
+	constructor(args) {
+		super(args);
+	}
+}
 
-SingleWinnerTargetBoundEntryStrategy = function (args) {
-	execute = async function () {
-		console.log(args);
-	};
-	return {execute};
-};
+class SingleWinnerTargetBoundDepositArgs extends BaseArgs {
+	constructor(args) {
+		super(args);
+	}
+}
 
-SingleWinnerTargetBoundWinStrategy = function (args) {
-	execute = async function () {
-		console.log(args);
-	};
-	return {execute};
-};
+class SingleWinnerTargetBoundEntryArgs extends BaseArgs {
+	constructor(args) {
+		super(args);
+	}
+}
 
-SingleWinnerTargetBoundClaimStrategy = function (args) {
+class SingleWinnerTargetBoundWinArgs extends BaseArgs {
+	constructor(args) {
+		super(args);
+	}
+}
+
+class SingleWinnerTargetBoundClaimArgs extends BaseArgs {
+	constructor(args) {
+		super(args);
+	}
+}
+
+class BaseStrategy {
+	_args;
+	constructor(args) {
+		this._args = args;
+	}
 	execute = async function () {
-		console.log(args);
+		console.log(this._args);
 	};
-	return {execute};
-};
+}
+
+class SingleWinnerTargetBoundStartStrategy extends BaseStrategy {
+	constructor(args) {
+		super(args);
+	}
+}
+
+class SingleWinnerTargetBoundDepositStrategy extends BaseStrategy {
+	constructor(args) {
+		super(args);
+	}
+}
+
+class SingleWinnerTargetBoundEntryStrategy extends BaseStrategy {
+	constructor(args) {
+		super(args);
+	}
+}
+
+class SingleWinnerTargetBoundWinStrategy extends BaseStrategy {
+	constructor(args) {
+		super(args);
+	}
+}
+
+class SingleWinnerTargetBoundClaimStrategy extends BaseStrategy {
+	constructor(args) {
+		super(args);
+	}
+}
 
 GamePlayer = function (startStrategy, depositStrategy, entryStrategy, winStrategy, claimStrategy) {
 	start = async function () {
@@ -52,19 +91,23 @@ GamePlayer = function (startStrategy, depositStrategy, entryStrategy, winStrateg
 	return {start, deposit, entry, win, claim};
 };
 
-describe("single winner in a target bound game", async function () {
+// annotation-like for grep-testing
+describe("[class-design-test] single winner in a target bound game", async function () {
 	try {
-		const startArgs = {};
-		const depositFeeArgs = {};
-		const entryArgs = {};
-		const winArgs = {};
-		const claimArgs = {};
-		const startStrategy = SingleWinnerTargetBoundStartStrategy(startArgs);
-		const depositStrategy = SingleWinnerTargetBoundDepositStrategy(depositFeeArgs);
-		const entryStrategy = SingleWinnerTargetBoundEntryStrategy(entryArgs);
-		const winStrategy = SingleWinnerTargetBoundWinStrategy(winArgs);
-		const claimStrategy = SingleWinnerTargetBoundClaimStrategy(claimArgs);
-		const game = GamePlayer(startStrategy, depositStrategy, entryStrategy, winStrategy, claimStrategy);
+		// args
+		const startArgs = new SingleWinnerTargetBoundStartArgs();
+		const depositFeeArgs = new SingleWinnerTargetBoundDepositArgs();
+		const entryArgs = new SingleWinnerTargetBoundEntryArgs();
+		const winArgs = new SingleWinnerTargetBoundWinArgs();
+		const claimArgs = new SingleWinnerTargetBoundClaimArgs();
+		// strategies
+		const startStrategy = new SingleWinnerTargetBoundStartStrategy(startArgs);
+		const depositStrategy = new SingleWinnerTargetBoundDepositStrategy(depositFeeArgs);
+		const entryStrategy = new SingleWinnerTargetBoundEntryStrategy(entryArgs);
+		const winStrategy = new SingleWinnerTargetBoundWinStrategy(winArgs);
+		const claimStrategy = new SingleWinnerTargetBoundClaimStrategy(claimArgs);
+		// game
+		const game = new GamePlayer(startStrategy, depositStrategy, entryStrategy, winStrategy, claimStrategy);
 		it("starts a match", async function () {
 			await game.start();
 		});
