@@ -94,8 +94,8 @@ contract Matchbase is OwnableExt {
 		return prizePools[_gameId];
 	}
 
-	function getPrizeAmount(string calldata _gameId, address winner) public view returns (uint) {
-		return winnings[_gameId][winner];
+	function getPrizeAmount(string calldata _gameId, address _winner) public view returns (uint) {
+		return winnings[_gameId][_winner];
 	}
 
 	function getBalance() public view returns (uint) {
@@ -103,7 +103,8 @@ contract Matchbase is OwnableExt {
 	}
 
 	function verifyClaim(string calldata _gameId, address _winner) public view returns (bool) {
-		require(claims[_gameId][_winner] > 0, "failed");
+		require(getPrizeAmount(_gameId, _winner) > 0, "no prize");
+		require(claims[_gameId][_winner] > 0, "can't claim");
 		return true;
 	}
 }

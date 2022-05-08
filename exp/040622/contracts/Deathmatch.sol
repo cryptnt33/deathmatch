@@ -114,7 +114,7 @@ contract Deathmatch is Matchbase {
 		// pick the winner from the randomly selected index
 		address winner = _players[index];
 		// set aside the winning amount
-		require(prizePools[_gameId] > 0, "prize pool is empty");
+		require(prizePools[_gameId] > 0, "pool dry");
 		// 80% goes to the winner
 		uint winningAmount = (prizePools[_gameId] * 4) / 5;
 		winnings[_gameId][winner] = winningAmount;
@@ -137,10 +137,10 @@ contract Deathmatch is Matchbase {
 		require(claims[_gameId][msg.sender] == 0, "duplicate claim");
 		claims[_gameId][msg.sender] = prizeAmount;
 		// transfer from the contract to the winner address
-		address payer = address(this);
-		require(payer.balance >= prizeAmount, "insufficient funds");
-		address payable winner = payable(msg.sender);
-		winner.transfer(prizeAmount);
+		require(getPrizePool(_gameId) >= prizeAmount, "pool dry");
+		require(address(this).balance >= prizeAmount, "insufficient funds");
+		prizePools[_gameId] -= prizeAmount;
+		payable(msg.sender).transfer(prizeAmount);
 		emit PrizeClaimed(_gameId, msg.sender, prizeAmount);
 	}
 }

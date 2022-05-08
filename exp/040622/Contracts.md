@@ -86,3 +86,49 @@ Validation checks:
 
 - transfer the tokens to game contract
 - verify token Id and ether deposited in the treasury
+
+Game basic functions:
+
+- start
+- deposit fee
+- enter
+- pick winner
+- claim prize
+
+Game execution stratgies:
+
+- time strategy e.g. match ends in 3 days
+- target prize strategy e.g. win 1 BTC or 1 Otherside deed. This requires a target amount e.g. 100 AVAX
+- giveaways for promotion: 0 floor prize, 1 max slot, starting a match requires hydrating the prize pool
+
+Game winning strategies:
+
+- only 1 winner
+  - max slots greater than 1
+  - lower floor
+  - 1 winner with a fixed share of the prize pool e.g. winner gets 75% of the prize pool
+- multiple winners
+  - max slots equal to 1
+  - higher floor
+  - fixed number
+    - x winners with a variable share of the prize pool e.g. gold wins 35% of the prize pool, silver gets 25%, and bronze gets 15%
+    - y winners with a fixed share of the prize pool e.g. 3 winners; each get 1 NFT or 25% of the prize pool
+  - percentage
+    - 10% of all players with a fixed share of the prize pool e.g. top 10% players get 35% of the prize pool, next 10% get 25%, next 10% get 15%
+
+Contract design:
+
+- MatchBase
+  - Args
+    - MatchArgs () //abstract or interface
+    - DepositArgs (uint slots) //abstract or interface
+    - StartArgs (string gameId, MatchArgs args)
+    - EnterArgs (string gameId, DepositArgs args)
+    - PickArgs (string gameId)
+    - ClaimArgs (string gameId)
+  - functions
+    - startMatch(StartArgs args)
+    - depositFee(DepositArgs args)
+    - enter(EnterArgs args)
+    - pickWinner(PickArgs args)
+    - claim(ClaimArgs args)
