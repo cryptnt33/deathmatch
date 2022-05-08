@@ -17,7 +17,7 @@ contract Matchbase is OwnableExt {
 	struct MatchInfo {
 		MatchStatus matchStatus;
 		uint timeStarted;
-		uint timeEnded;
+		uint duration;
 		uint floorPrice;
 		uint maxSlotsPerWallet;
 		address startedBy;
@@ -68,37 +68,42 @@ contract Matchbase is OwnableExt {
         property getters/setters
     */
 
-	function setWallet(address payable _wallet) external onlyOwner {
+	function setWallet(address payable _wallet) public onlyOwner {
 		address oldWallet = externalWallet;
 		externalWallet = _wallet;
 		emit WalletChanged(externalWallet, oldWallet);
 	}
 
-	function getMatchStatus(string calldata _gameId) external view returns (MatchStatus) {
+	function getMatchStatus(string calldata _gameId) public view returns (MatchStatus) {
 		return matches[_gameId].matchStatus;
 	}
 
-	function getFloorPrice(string calldata _gameId) external view returns (uint) {
+	function getFloorPrice(string calldata _gameId) public view returns (uint) {
 		return matches[_gameId].floorPrice;
 	}
 
-	function getDepositInfo(string calldata _gameId, address by) external view returns (DepositInfo memory) {
+	function getDepositInfo(string calldata _gameId, address by) public view returns (DepositInfo memory) {
 		return deposits[_gameId][by];
 	}
 
-	function getPlayers(string calldata _gameId) external view returns (address[] memory) {
+	function getPlayers(string calldata _gameId) public view returns (address[] memory) {
 		return players[_gameId];
 	}
 
-	function getPrizePool(string calldata _gameId) external view returns (uint) {
+	function getPrizePool(string calldata _gameId) public view returns (uint) {
 		return prizePools[_gameId];
 	}
 
-	function getPrizeAmount(string calldata _gameId, address winner) external view returns (uint) {
+	function getPrizeAmount(string calldata _gameId, address winner) public view returns (uint) {
 		return winnings[_gameId][winner];
 	}
 
-	function getBalance() external view returns (uint) {
+	function getBalance() public view returns (uint) {
 		return address(this).balance;
+	}
+
+	function verifyClaim(string calldata _gameId, address _winner) public view returns (bool) {
+		require(claims[_gameId][_winner] > 0, "failed");
+		return true;
 	}
 }

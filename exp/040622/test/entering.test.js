@@ -2,6 +2,7 @@ const chai = require("chai");
 const {expect, assert} = chai;
 const {ethers} = require("hardhat");
 const {v4: uuidv4} = require("uuid");
+const {startMatch, startMatchTx} = require("./setup");
 
 // any external account can enter a match
 // all deposits are made to an external multi-sig wallet
@@ -56,9 +57,10 @@ describe("entering a match...", async function () {
 	}
 
 	it("deposit to contract address", async function () {
-		const gameId = uuidv4();
+		// const gameId = uuidv4();
 		const slots = 1;
-		await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+		// await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+		const gameId = await startMatch(contractInstance);
 		await depositTest(slots, pointFiveEther.mul(slots), gameId, contractInstance);
 	});
 	it("only owner can change the external account address", async function () {
@@ -67,9 +69,9 @@ describe("entering a match...", async function () {
 		await expect(tempInstance.setWallet(accounts[11].address)).to.be.revertedWith("Ownable: caller is not the owner");
 	});
 	it("any external account can enter a match", async function () {
-		const gameId = uuidv4();
+		// const gameId = uuidv4();
 		// start a game
-		await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+		const gameId = await startMatch(contractInstance);
 
 		const altAccount = accounts[13];
 		// change context to a different account
@@ -85,23 +87,20 @@ describe("entering a match...", async function () {
 		expect(players.length).to.equal(slots);
 	});
 	it("can purchase a limited number of slots/tickets", async function () {
-		const gameId = uuidv4();
 		const slots = 11;
 		const depositRequired = pointSevenFiveEther.mul(slots);
-		await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+		const gameId = await startMatch(contractInstance);
 		await expect(contractInstance.depositFee(gameId, slots, {value: depositRequired})).to.be.revertedWith("slot limit exceeded");
 	});
 	it("deposit ethers in multiples of slots", async function () {
-		const gameId = uuidv4();
 		const slots = 5;
 		const depositRequired = pointFiveEther.mul(4);
-		await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+		const gameId = await startMatch(contractInstance);
 		await expect(contractInstance.depositFee(gameId, slots, {value: depositRequired})).to.be.revertedWith("incorrect deposit");
 	});
 	it("can enter a match only once", async function () {
 		// start match
-		const gameId = uuidv4();
-		await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+		const gameId = await startMatch(contractInstance);
 		// deposit ethers
 		const slots = 5;
 		const depositRequired = pointFiveEther.mul(slots);
@@ -117,11 +116,11 @@ describe("entering a match...", async function () {
 		expect(players.length).to.equal(5);
 	});
 	it("more than one wallet can enter a game", async function () {
-		// start match
-		const gameId = uuidv4();
 		const player1 = await contractInstance.connect(accounts[13]);
 		const player2 = await contractInstance.connect(accounts[14]);
-		await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+
+		// start match
+		const gameId = await startMatch(contractInstance);
 
 		// account#1 deposit ethers
 		const slots = 5;
@@ -146,7 +145,7 @@ describe("entering a match...", async function () {
 	});
 	xit("calculate approximate gas fee", async function () {
 		const gameId = uuidv4();
-		const tx1 = await (await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed)).wait();
+		const tx1 = await startMatchTx(contractInstance, gameId).wait();
 		const slots = 5;
 		const depositRequired = pointFiveEther.mul(slots);
 		const tx2 = await (
@@ -171,8 +170,7 @@ describe("entering a match...", async function () {
 		expect(averageAvaxPriceInDollars * costInEth).to.be.lessThanOrEqual(1.5);
 	});
 	it("can't enter match without a deposit", async function () {
-		const gameId = uuidv4();
-		await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+		const gameId = await startMatch(contractInstance);
 		await expect(contractInstance.enterMatch(gameId, randomSeed)).to.be.revertedWith("deposit required");
 	});
 	it("can deposit fee only if the match in progress", async function () {

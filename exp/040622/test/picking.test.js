@@ -33,7 +33,7 @@ describe("picking a match winner...", async function () {
 				},
 			];
 
-			gameId = await setupMatches(contractInstance, players, pointFiveEther, 10, randomSeed);
+			gameId = await setupMatches(contractInstance, players, randomSeed);
 
 			assert.isOk(true);
 		} catch (e) {

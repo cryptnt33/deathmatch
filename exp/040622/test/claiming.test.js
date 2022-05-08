@@ -5,7 +5,7 @@ const {v4: uuidv4} = require("uuid");
 const {setupMatches} = require("./setup");
 
 describe("claiming a prize...", async function () {
-	let contractFactory, contractInstance, accounts, externalWallet;
+	let contractFactory, contractInstance, accounts, externalWallet, winner;
 	const pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
 	const randomSeed = uuidv4().substring(0, 6);
 	let gameId, players;
@@ -21,7 +21,7 @@ describe("claiming a prize...", async function () {
 
 	pickWinner = async function () {
 		const tx = await (await contractInstance.pickWinner(gameId, randomSeed)).wait();
-		const winner = tx.events[0].args[1];
+		winner = tx.events[0].args[1];
 		const index = tx.events[0].args[2].toNumber();
 		const prizeAmount = tx.events[0].args[3];
 		return {winner, index, prizeAmount};
@@ -49,7 +49,7 @@ describe("claiming a prize...", async function () {
 				},
 			];
 			// console.log(accounts[0]);
-			gameId = await setupMatches(contractInstance, players, pointFiveEther, 10, randomSeed);
+			gameId = await setupMatches(contractInstance, players, randomSeed);
 
 			assert.isOk(true);
 		} catch (e) {
@@ -57,7 +57,7 @@ describe("claiming a prize...", async function () {
 			assert.fail();
 		}
 	});
-	it("equal to 75% of the total pooled ether", async function () {
+	it("winner can claim prize", async function () {
 		// find a winner
 		const {winner, index, prizeAmount} = await pickWinner();
 		// switch context to winner
@@ -68,22 +68,15 @@ describe("claiming a prize...", async function () {
 		const newWalletBalance = await contractInstance.getBalance();
 		expect(walletBalance).to.equal(newWalletBalance.add(prizeAmount));
 	});
-	it("verify 25% of the pooled ether stayed in the treasury", async function () {
-		assert.fail();
-	});
 	it("can only claim once", async function () {
-		assert.fail();
+		const player = await contractInstance.connect(addressToSigner(winner));
+		expect(player.claimPrize(gameId)).to.be.revertedWith("duplicate claim");
 	});
 	it("only a single winner can claim the prize", async function () {
-		assert.fail();
+		expect(contractInstance.claimPrize(gameId)).to.be.revertedWith("unauthorized");
 	});
 	it("verify the prize is claimed by the winner", async function () {
-		assert.fail();
-	});
-	it("within 7 days", async function () {
-		assert.fail();
-	});
-	it("even after the match has ended", async function () {
-		assert.fail();
+		expect(await contractInstance.verifyClaim(gameId, winner)).to.equal(true);
+		expect(contractInstance.verifyClaim(gameId, accounts[1].address)).to.be.revertedWith("failed");
 	});
 });

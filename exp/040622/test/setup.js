@@ -1,10 +1,18 @@
 const {v4: uuidv4} = require("uuid");
+const {ethers} = require("hardhat");
+const pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
 
-setupMatches = async function (contractInstance, players, pointFiveEther, maxSlots, randomSeed) {
-	const gameId = uuidv4();
+startMatch = async function (contractInstance, gameId = uuidv4(), floor = pointFiveEther, maxSlots = 10, duration = 5, randomSeed = uuidv4().substring(0, 6)) {
+	await contractInstance.startMatch(gameId, floor, maxSlots, duration, randomSeed);
+	return gameId;
+};
 
-	// start match
-	await contractInstance.startMatch(gameId, pointFiveEther, maxSlots, randomSeed);
+startMatchTx = async function (contractInstance, gameId = uuidv4(), floor = pointFiveEther, maxSlots = 10, duration = 5, randomSeed = uuidv4().substring(0, 6)) {
+	return contractInstance.startMatch(gameId, floor, maxSlots, duration, randomSeed);
+};
+
+setupMatches = async function (contractInstance, players, randomSeed) {
+	const gameId = await startMatch(contractInstance);
 
 	for (i = 0; i < players.length; i++) {
 		const player = await contractInstance.connect(players[i].account);
@@ -19,4 +27,4 @@ setupMatches = async function (contractInstance, players, pointFiveEther, maxSlo
 	return gameId;
 };
 
-module.exports = {setupMatches};
+module.exports = {setupMatches, startMatch, startMatchTx};

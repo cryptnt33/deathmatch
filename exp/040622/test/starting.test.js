@@ -2,6 +2,7 @@ const chai = require("chai");
 const {expect, assert} = chai;
 const {ethers} = require("hardhat");
 const {v4: uuidv4} = require("uuid");
+const {startMatch, startMatchTx} = require("./setup");
 
 describe("starting a match...", async function () {
 	let contractFactory, contractInstance, accounts, externalWallet;
@@ -23,15 +24,14 @@ describe("starting a match...", async function () {
 	});
 
 	it("owners can start a match", async function () {
-		const gameId = uuidv4();
-		await contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+		const gameId = await startMatch(contractInstance);
 		expect(await contractInstance.getMatchStatus(gameId)).to.equal(1);
 		expect(await contractInstance.isOwner(accounts[0].address)).to.equal(true);
 	});
 	it("can't start non-unique match", async function () {
 		const gameId = uuidv4();
-		const tx1 = contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
-		const tx2 = contractInstance.startMatch(gameId, pointFiveEther, 10, randomSeed);
+		const tx1 = startMatchTx(contractInstance, gameId);
+		const tx2 = startMatchTx(contractInstance, gameId);
 		await tx1;
 		await expect(tx2).to.be.revertedWith("match in-progress");
 	});
@@ -41,14 +41,14 @@ describe("starting a match...", async function () {
 		const tempInstance = await contractInstance.connect(accounts[2]);
 		expect(await tempInstance.isOwner(accounts[0].address)).to.equal(true);
 		expect(await tempInstance.isOwner(accounts[2].address)).to.equal(false);
-		await expect(tempInstance.startMatch(gameId, pointFiveEther, 10, randomSeed)).to.be.revertedWith("only owner or delegator");
+		await expect(startMatchTx(tempInstance, gameId)).to.be.revertedWith("only owner or delegator");
 	});
 	it("more than one match can start at a time", async function () {
 		// wait to capture event emitted
 		const g1 = uuidv4();
 		const g2 = uuidv4();
-		const tx1 = await (await contractInstance.startMatch(g1, pointFiveEther, 10, randomSeed)).wait();
-		const tx2 = await (await contractInstance.startMatch(g2, pointFiveEther, 10, randomSeed)).wait();
+		const tx1 = await (await startMatchTx(contractInstance, g1)).wait();
+		const tx2 = await (await startMatchTx(contractInstance, g2)).wait();
 		// event data
 		const gameId1 = tx1.events[0].args[0];
 		const ts1 = tx1.events[0].args[1].toNumber();
@@ -74,18 +74,18 @@ describe("starting a match...", async function () {
 	});
 	it("admins or delegators can start a match", async function () {
 		// admin
-		const tx1 = await (await contractInstance.startMatch(uuidv4(), pointFiveEther, 10, randomSeed)).wait();
+		const tx1 = await (await startMatchTx(contractInstance)).wait();
 		const gameId1 = tx1.events[0].args[0];
 		expect(await contractInstance.getMatchStatus(gameId1)).to.equal(1);
 		// delegator (added above)
 		const tempInstance = await contractInstance.connect(accounts[3]);
-		const tx2 = await (await tempInstance.startMatch(uuidv4(), pointFiveEther, 10, randomSeed)).wait();
+		const tx2 = await (await startMatchTx(tempInstance)).wait();
 		const gameId2 = tx2.events[0].args[0];
 		expect(await contractInstance.getMatchStatus(gameId1)).to.equal(1);
 		expect(await tempInstance.getMatchStatus(gameId2)).to.equal(1);
 	});
 	it("with a custom floor price", async function () {
-		const tx1 = await (await contractInstance.startMatch(uuidv4(), pointFiveEther, 10, randomSeed)).wait();
+		const tx1 = await (await startMatchTx(contractInstance)).wait();
 		const gameId1 = tx1.events[0].args[0];
 		expect(await contractInstance.getFloorPrice(gameId1)).to.equal(pointFiveEther);
 	});
