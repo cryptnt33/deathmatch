@@ -65,8 +65,8 @@ contract Deathmatch is Matchbase {
 	// anyone can enter a match
 	// can't enter a match without depositing fee
 	function enterMatch(string calldata _gameId, string calldata randomSeed) public seedLength(randomSeed) {
-		MatchInfo storage matchInfo = matches[_gameId];
-		DepositInfo storage depositInfo = deposits[_gameId][msg.sender];
+		MatchInfo memory matchInfo = matches[_gameId];
+		DepositInfo memory depositInfo = deposits[_gameId][msg.sender];
 
 		// match must be started
 		require(matchInfo.matchStatus == MatchStatus.Started, "match not started");
@@ -127,7 +127,7 @@ contract Deathmatch is Matchbase {
 		emit WinnerPicked(_gameId, winner, index, winningAmount);
 	}
 
-	function claimPrize(string calldata _gameId) public payable {
+	function claimPrize(string calldata _gameId) public payable virtual {
 		// forbid smart contracts from calling this function
 		// require(msg.sender != tx.origin, "forbidden");
 		uint prizeAmount = winnings[_gameId][msg.sender];
