@@ -1,5 +1,6 @@
 require("@nomiclabs/hardhat-waffle");
 require("solidity-coverage");
+require("hardhat-contract-sizer");
 // require("@openzeppelin/hardhat-upgrades");
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -21,9 +22,14 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 module.exports = {
 	solidity: {
 		version: "0.8.4",
-		optimizer: {
-			enabled: true,
-			runs: 200,
-		},
+		// optimizer: {
+		// 	enabled: true,
+		// 	runs: 200,
+		// },
+	},
+	contractSizer: {
+		disambiguatePaths: false,
+		runOnCompile: true,
+		strict: true,
 	},
 };

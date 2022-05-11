@@ -2,35 +2,13 @@
 pragma solidity ^0.8.0;
 
 import "./OwnableExt.sol";
-import "./Rando.sol";
+import "./MatchLib.sol";
 
 contract Matchbase is OwnableExt {
 	address payable internal externalWallet;
-	Rando internal rando;
 
-	enum MatchStatus {
-		NotStarted,
-		Started,
-		Finished
-	}
-
-	struct MatchInfo {
-		MatchStatus matchStatus;
-		uint timeStarted;
-		uint duration;
-		uint floorPrice;
-		uint maxSlotsPerWallet;
-		address startedBy;
-	}
-
-	struct DepositInfo {
-		uint depositAmount;
-		uint slots;
-		bool deposited;
-	}
-
-	mapping(string => MatchInfo) internal matches;
-	mapping(string => mapping(address => DepositInfo)) internal deposits;
+	mapping(string => MatchLib.MatchInfo) internal matches;
+	mapping(string => mapping(address => MatchLib.DepositInfo)) internal deposits;
 	mapping(string => address[]) internal players;
 	mapping(string => mapping(address => uint)) internal wallets;
 	mapping(string => string) internal randomSeeds;
@@ -45,7 +23,6 @@ contract Matchbase is OwnableExt {
 	event PrizeClaimed(string, address, uint);
 
 	constructor(address payable _wallet) OwnableExt() {
-		rando = new Rando();
 		externalWallet = _wallet;
 	}
 
@@ -74,7 +51,7 @@ contract Matchbase is OwnableExt {
 		emit WalletChanged(externalWallet, oldWallet);
 	}
 
-	function getMatchStatus(string calldata _gameId) public view returns (MatchStatus) {
+	function getMatchStatus(string calldata _gameId) public view returns (MatchLib.MatchStatus) {
 		return matches[_gameId].matchStatus;
 	}
 
@@ -82,7 +59,7 @@ contract Matchbase is OwnableExt {
 		return matches[_gameId].floorPrice;
 	}
 
-	function getDepositInfo(string calldata _gameId, address by) public view returns (DepositInfo memory) {
+	function getDepositInfo(string calldata _gameId, address by) public view returns (MatchLib.DepositInfo memory) {
 		return deposits[_gameId][by];
 	}
 
