@@ -53,4 +53,38 @@ library MatchLib {
 		require(index >= 0 && index < _players, "invalid index");
 		return index;
 	}
+
+	function validateDeposit(
+		MatchInfo memory _matchInfo,
+		DepositInfo memory _depositInfo,
+		uint _slots,
+		uint _timestamp,
+		uint _depositAmount
+	) internal pure {
+		// match must be started
+		require(_matchInfo.matchStatus == MatchStatus.Started, "match not started");
+
+		// match is time-bound
+		require(_timestamp <= _matchInfo.timeStarted + _matchInfo.duration, "too late");
+
+		// verify slot limits
+		require(_slots >= 1 && _slots <= _matchInfo.maxSlotsPerWallet, "slot limit exceeded");
+
+		// verify deposit amount
+		require(_depositAmount == _matchInfo.floorPrice * _slots, "incorrect deposit");
+
+		// ensure only one entry per wallet
+		require(!_depositInfo.deposited, "re-entry not allowed");
+	}
+
+	function validateEntry(MatchInfo memory _matchInfo, DepositInfo memory _depositInfo) internal pure {
+		// match must be started
+		require(_matchInfo.matchStatus == MatchStatus.Started, "match not started");
+
+		// verify if deposit was called before entering
+		require(_depositInfo.deposited, "deposit required");
+
+		// deposit should equal floor price * slots
+		require(_depositInfo.depositAmount == _depositInfo.slots * _matchInfo.floorPrice, "incorrect deposit");
+	}
 }

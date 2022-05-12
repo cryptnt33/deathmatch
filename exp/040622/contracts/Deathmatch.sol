@@ -33,28 +33,11 @@ contract Deathmatch is Matchbase {
 	function depositFee(string calldata _gameId, uint _slots) public payable {
 		MatchLib.MatchInfo memory info = matches[_gameId];
 		MatchLib.DepositInfo storage depositInfo = deposits[_gameId][msg.sender];
-
-		// match must be started
-		require(info.matchStatus == MatchLib.MatchStatus.Started, "match not started");
-
-		// match is time-bound
-		require(block.timestamp <= info.timeStarted + info.duration, "too late");
-
-		// verify slot limits
-		require(_slots >= 1 && _slots <= info.maxSlotsPerWallet, "slot limit exceeded");
-
-		// verify deposit amount
-		require(msg.value == info.floorPrice * _slots, "incorrect deposit");
-
-		// ensure only one entry per wallet
-		require(!depositInfo.deposited, "re-entry not allowed");
-
+		MatchLib.validateDeposit(info, depositInfo, _slots, block.timestamp, msg.value);
 		// save deposit info for validation later
 		deposits[_gameId][msg.sender] = MatchLib.DepositInfo(msg.value, _slots, true);
-
 		// update the prize pool for this game
 		prizePools[_gameId] += msg.value;
-
 		// save wallet address for the game
 		emit FeeDeposited(_gameId, msg.sender, msg.value);
 	}
@@ -65,28 +48,16 @@ contract Deathmatch is Matchbase {
 	function enterMatch(string calldata _gameId, string calldata randomSeed) public seedLength(randomSeed) {
 		MatchLib.MatchInfo memory matchInfo = matches[_gameId];
 		MatchLib.DepositInfo memory depositInfo = deposits[_gameId][msg.sender];
-
-		// match must be started
-		require(matchInfo.matchStatus == MatchLib.MatchStatus.Started, "match not started");
-
-		// verify if deposit was called before entering
-		require(depositInfo.deposited, "deposit required");
-
-		// deposit should equal floor price * slots
-		require(depositInfo.depositAmount == depositInfo.slots * matchInfo.floorPrice, "incorrect deposit");
-
+		MatchLib.validateEntry(matchInfo, depositInfo);
 		// enter match
 		address[] storage _players = players[_gameId];
-
 		// check for re-entry
 		// don't allow if address already exists
 		require(wallets[_gameId][msg.sender] == 0, "re-entry not allowed");
-
 		// add players by number of slots
 		for (uint i = 0; i < depositInfo.slots; i++) {
 			_players.push(msg.sender);
 		}
-		players[_gameId] = _players;
 		wallets[_gameId][msg.sender] = 1;
 		randomSeeds[_gameId] = Rando.concat(randomSeeds[_gameId], randomSeed);
 	}
