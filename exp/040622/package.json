@@ -8,7 +8,10 @@
 		"contracts": "npx hardhat size-contracts",
 		"test-slow": "mocha --timeout 1000000",
 		"slint": "slither . --disable-color --filter-paths 'node_modules'",
-		"gpg": "export GPG_TTY=$(tty)"
+		"gpg": "export GPG_TTY=$(tty)",
+		"deploy": "npx hardhat run --network localhost scripts/deploy-dm.js",
+		"node": "npx hardhat node",
+		"sync": "npx hardhat compile && rsync -a --delete ./artifacts ../frontend/dapp/src/solidity/"
 	},
 	"author": "",
 	"license": "ISC",

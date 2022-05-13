@@ -30,31 +30,31 @@ contract Deathmatch is Matchbase {
 	}
 
 	// anyone can deposit fee for a game
+	// save deposit info for validation later
+	// update the prize pool for this game
+	// save wallet address for the game
 	function depositFee(string calldata _gameId, uint _slots) public payable {
 		MatchLib.MatchInfo memory info = matches[_gameId];
 		MatchLib.DepositInfo storage depositInfo = deposits[_gameId][msg.sender];
 		MatchLib.validateDeposit(info, depositInfo, _slots, block.timestamp, msg.value);
-		// save deposit info for validation later
 		deposits[_gameId][msg.sender] = MatchLib.DepositInfo(msg.value, _slots, true);
-		// update the prize pool for this game
 		prizePools[_gameId] += msg.value;
-		// save wallet address for the game
 		emit FeeDeposited(_gameId, msg.sender, msg.value);
 	}
 
 	// enter a match one or more times depending on the number of slots purchased
 	// anyone can enter a match
 	// can't enter a match without depositing fee
+	// enter match
+	// check for re-entry
+	// don't allow if address already exists
+	// add players by number of slots
 	function enterMatch(string calldata _gameId, string calldata randomSeed) public seedLength(randomSeed) {
 		MatchLib.MatchInfo memory matchInfo = matches[_gameId];
 		MatchLib.DepositInfo memory depositInfo = deposits[_gameId][msg.sender];
 		MatchLib.validateEntry(matchInfo, depositInfo);
-		// enter match
 		address[] storage _players = players[_gameId];
-		// check for re-entry
-		// don't allow if address already exists
 		require(wallets[_gameId][msg.sender] == 0, "re-entry not allowed");
-		// add players by number of slots
 		for (uint i = 0; i < depositInfo.slots; i++) {
 			_players.push(msg.sender);
 		}
