@@ -1,20 +1,103 @@
 import logo from "./logo.svg";
+import {useState} from "react";
 import "./App.css";
 import {ethers} from "ethers";
 import Deathmatch from "./solidity/artifacts/contracts/Deathmatch.sol/Deathmatch.json";
 
+const ContractAddress = "0x572eeF37C1506e3d8E266345B7E53c6E9ce1E878";
+
+const {v4: uuidv4} = require("uuid");
+
+function addDays(duration) {
+	return duration * 86400000 + Date.now();
+}
+
 function App() {
+	const [error, setError] = useState();
+	const [floorPrice, setFloorPrice] = useState(1);
+	const [slots, setSlots] = useState(1);
+	const [matchId] = useState(uuidv4());
+	const [randomSeed] = useState(uuidv4().substring(0, 6));
+	const [duration, setDuration] = useState("1");
+
+	// console.log(addDays(1));
+
+	function noEth() {
+		return typeof window.ethereum === "undefined";
+	}
+
+	async function requestAccount() {
+		try {
+			await window.ethereum.request({method: "eth_requestAccounts"});
+		} catch (e) {
+			console.log(e);
+			setError(e.message);
+		}
+	}
+
+	async function startMatch() {
+		if (noEth()) return;
+		await requestAccount();
+		try {
+			const provider = new ethers.providers.Web3Provider(window.ethereum);
+			const signer = provider.getSigner();
+			const contract = new ethers.Contract(ContractAddress, Deathmatch.abi, signer);
+			console.log(provider, contract, signer);
+			contract.on("MatchStarted", (id, ts) => {
+				console.log("MatchStarted triggered", id, ts);
+			});
+			const tx = await contract.startMatch(matchId, floorPrice, slots, addDays(duration), randomSeed);
+			await tx.wait();
+		} catch (e) {
+			console.log(e);
+			setError(e.message);
+		}
+	}
+
 	return (
-		<div className="App">
-			<header className="App-header">
-				<img src={logo} className="App-logo" alt="logo" />
-				<p>
-					Edit <code>src/App.js</code> and save to reload.
-				</p>
-				<a className="App-link" href="https://reactjs.org" target="_blank" rel="noopener noreferrer">
-					Learn React
-				</a>
-			</header>
+		<div>
+			<div>
+				<button onClick={requestAccount}>Request Account</button>
+				<label>{error}</label>
+			</div>
+			<div>
+				<h3>Start Match</h3>
+				<label>Match ID: {matchId}</label>
+				<div>
+					<label>Floor price (Set the floor price in AVAX. This is the price of entry a player pays times the number of slots they purchase.)</label>
+					<select onChange={setFloorPrice}>
+						<option>1</option>
+						<option>2</option>
+						<option>3</option>
+						<option>4</option>
+						<option>5</option>
+					</select>
+				</div>
+				<div>
+					<label>Slots (Set the maximum number of slots per player per match. It increases a players chance to win. Its like buying more than 1 ticket to a lottery)</label>
+					<select onChange={setSlots}>
+						<option>1</option>
+						<option>2</option>
+						<option>3</option>
+						<option>4</option>
+						<option>5</option>
+					</select>
+				</div>
+				<div>
+					<label>Random seed: {randomSeed}</label>
+				</div>
+				<div>
+					<label>Duration (in number of days)</label>
+					<select onChange={setDuration}>
+						<option>1</option>
+						<option>2</option>
+						<option>3</option>
+					</select>
+				</div>
+				<div>
+					<button onClick={startMatch}>Start Match</button>
+				</div>
+			</div>
 		</div>
 	);
 }
