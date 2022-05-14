@@ -18,14 +18,14 @@ contract Deathmatch is Matchbase {
 		string calldata _gameId,
 		uint _floorPrice,
 		uint _maxSlots,
-		uint duration,
-		string calldata randomSeed
-	) public ownerOrDelegator seedLength(randomSeed) {
+		uint _duration,
+		string calldata _randomSeed
+	) public ownerOrDelegator seedLength(_randomSeed) {
 		uint timestamp = block.timestamp;
 		MatchLib.MatchInfo memory info = matches[_gameId];
 		require(info.matchStatus == MatchLib.MatchStatus.NotStarted, "match in-progress");
-		matches[_gameId] = MatchLib.MatchInfo(MatchLib.MatchStatus.Started, timestamp, duration, _floorPrice, _maxSlots, msg.sender);
-		randomSeeds[_gameId] = randomSeed;
+		matches[_gameId] = MatchLib.MatchInfo(MatchLib.MatchStatus.Started, timestamp, _duration, _floorPrice, _maxSlots, msg.sender);
+		randomSeeds[_gameId] = _randomSeed;
 		emit MatchStarted(_gameId, timestamp);
 	}
 

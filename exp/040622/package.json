@@ -9,7 +9,7 @@
 		"test-slow": "mocha --timeout 1000000",
 		"slint": "slither . --disable-color --filter-paths 'node_modules'",
 		"gpg": "export GPG_TTY=$(tty)",
-		"deploy": "npx hardhat run --network localhost scripts/deploy-dm.js",
+		"deploy": "npm run test && npx hardhat run --network fuji scripts/deploy-dm.js && rsync -a --delete ./artifacts ../frontend/dapp/src/solidity/",
 		"node": "npx hardhat node",
 		"sync": "npx hardhat compile && rsync -a --delete ./artifacts ../frontend/dapp/src/solidity/"
 	},

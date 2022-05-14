@@ -1,10 +1,11 @@
-import logo from "./logo.svg";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import "./App.css";
 import {ethers} from "ethers";
 import Deathmatch from "./solidity/artifacts/contracts/Deathmatch.sol/Deathmatch.json";
+import {OnboardingButton} from "./Components/OnboardingButton";
+import {AddAvalancheButton} from "./Components/AddAvalancheButton";
 
-const ContractAddress = "0x572eeF37C1506e3d8E266345B7E53c6E9ce1E878";
+const ContractAddress = "0x9A93C1FFA030e158b58D42f1477f561E96752dc9";
 
 const {v4: uuidv4} = require("uuid");
 
@@ -18,9 +19,15 @@ function App() {
 	const [slots, setSlots] = useState(1);
 	const [matchId] = useState(uuidv4());
 	const [randomSeed] = useState(uuidv4().substring(0, 6));
-	const [duration, setDuration] = useState("1");
+	const [duration, setDuration] = useState(1);
 
 	// console.log(addDays(1));
+
+	let provider;
+
+	useEffect(() => {
+		provider = new ethers.providers.Web3Provider(window.ethereum);
+	}, []);
 
 	function noEth() {
 		return typeof window.ethereum === "undefined";
@@ -39,14 +46,12 @@ function App() {
 		if (noEth()) return;
 		await requestAccount();
 		try {
-			const provider = new ethers.providers.Web3Provider(window.ethereum);
 			const signer = provider.getSigner();
 			const contract = new ethers.Contract(ContractAddress, Deathmatch.abi, signer);
-			console.log(provider, contract, signer);
 			contract.on("MatchStarted", (id, ts) => {
 				console.log("MatchStarted triggered", id, ts);
 			});
-			const tx = await contract.startMatch(matchId, floorPrice, slots, addDays(duration), randomSeed);
+			const tx = await contract.startMatch(matchId, parseInt(floorPrice), parseInt(slots), addDays(parseInt(duration)), randomSeed);
 			await tx.wait();
 		} catch (e) {
 			console.log(e);
@@ -56,6 +61,12 @@ function App() {
 
 	return (
 		<div>
+			<div>
+				<AddAvalancheButton provider={window.ethereum} />
+			</div>
+			<div>
+				<OnboardingButton />
+			</div>
 			<div>
 				<button onClick={requestAccount}>Request Account</button>
 				<label>{error}</label>
@@ -98,6 +109,7 @@ function App() {
 					<button onClick={startMatch}>Start Match</button>
 				</div>
 			</div>
+			<div></div>
 		</div>
 	);
 }
