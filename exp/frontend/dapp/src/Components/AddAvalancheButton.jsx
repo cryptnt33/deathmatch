@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 const AVALANCHE_NETWORK_PARAMS = {
   development: {
     chainId: "0xA869",
@@ -35,18 +35,28 @@ const AVALANCHE_NETWORK_PARAMS = {
   },
 };
 
-function getAvalancheNetwork() {
-  return AVALANCHE_NETWORK_PARAMS[process.env.NODE_ENV];
-}
+// the single purpose of this component is to help users add Avalanche network to Metakask
 export function AddAvalancheButton({ provider }) {
+  const [buttonText] = useState("Add Avalanche Network");
+  const [disable, setDisable] = useState(false);
+  const avalanceNetwork = AVALANCHE_NETWORK_PARAMS[process.env.NODE_ENV];
+
   async function addAvalancheNetwork() {
-    const network = getAvalancheNetwork();
-    console.log(network);
-    await provider.request({
-      method: "wallet_addEthereumChain",
-      params: [network],
-    });
+    try {
+      await provider.request({
+        method: "wallet_addEthereumChain",
+        params: [avalanceNetwork],
+      });
+      setDisable(true);
+    } catch (e) {
+      setDisable(false);
+      console.log(e);
+    }
   }
 
-  return <button onClick={addAvalancheNetwork}>Add Avalanche Network</button>;
+  return (
+    <button disabled={disable} onClick={addAvalancheNetwork}>
+      {buttonText}
+    </button>
+  );
 }

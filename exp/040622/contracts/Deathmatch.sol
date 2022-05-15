@@ -1,10 +1,9 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity 0.8.9;
 
 import "./Matchbase.sol";
 import "./ArrayUtils.sol";
 import "./Rando.sol";
-import "./MatchLib.sol";
 
 contract Deathmatch is Matchbase {
 	constructor(address payable _wallet) Matchbase(_wallet) {}
@@ -20,11 +19,11 @@ contract Deathmatch is Matchbase {
 		uint _maxSlots,
 		uint _duration,
 		string calldata _randomSeed
-	) public ownerOrDelegator seedLength(_randomSeed) {
-		uint timestamp = block.timestamp;
-		MatchLib.MatchInfo memory info = matches[_gameId];
-		require(info.matchStatus == MatchLib.MatchStatus.NotStarted, "match in-progress");
-		matches[_gameId] = MatchLib.MatchInfo(MatchLib.MatchStatus.Started, timestamp, _duration, _floorPrice, _maxSlots, msg.sender);
+	) external ownerOrDelegator seedLength(_randomSeed) {
+		uint timestamp = Rando.getTimestamp();
+		MatchInfo memory info = matches[_gameId];
+		require(info.matchStatus == MatchStatus.NotStarted, "match in-progress");
+		matches[_gameId] = MatchInfo(MatchStatus.Started, timestamp, _duration, _floorPrice, _maxSlots, msg.sender);
 		randomSeeds[_gameId] = _randomSeed;
 		emit MatchStarted(_gameId, timestamp);
 	}
@@ -33,11 +32,20 @@ contract Deathmatch is Matchbase {
 	// save deposit info for validation later
 	// update the prize pool for this game
 	// save wallet address for the game
-	function depositFee(string calldata _gameId, uint _slots) public payable {
-		MatchLib.MatchInfo memory info = matches[_gameId];
-		MatchLib.DepositInfo storage depositInfo = deposits[_gameId][msg.sender];
-		MatchLib.validateDeposit(info, depositInfo, _slots, block.timestamp, msg.value);
-		deposits[_gameId][msg.sender] = MatchLib.DepositInfo(msg.value, _slots, true);
+	// match must be started
+	// match is time-bound
+	// verify slot limits
+	// verify deposit amount
+	// ensure only one entry per wallet
+	function depositFee(string calldata _gameId, uint _slots) external payable {
+		MatchInfo memory info = matches[_gameId];
+		DepositInfo storage depositInfo = deposits[_gameId][msg.sender];
+		require(info.matchStatus == MatchStatus.Started, "match not started");
+		require(Rando.getTimestamp() <= info.timeStarted + info.duration, "too late");
+		require(_slots >= 1 && _slots <= info.maxSlotsPerWallet, "slot limit exceeded");
+		require(msg.value == info.floorPrice * _slots, "incorrect deposit");
+		require(!depositInfo.deposited, "re-entry not allowed");
+		deposits[_gameId][msg.sender] = DepositInfo(msg.value, _slots, true);
 		prizePools[_gameId] += msg.value;
 		emit FeeDeposited(_gameId, msg.sender, msg.value);
 	}
@@ -49,10 +57,15 @@ contract Deathmatch is Matchbase {
 	// check for re-entry
 	// don't allow if address already exists
 	// add players by number of slots
-	function enterMatch(string calldata _gameId, string calldata randomSeed) public seedLength(randomSeed) {
-		MatchLib.MatchInfo memory matchInfo = matches[_gameId];
-		MatchLib.DepositInfo memory depositInfo = deposits[_gameId][msg.sender];
-		MatchLib.validateEntry(matchInfo, depositInfo);
+	// match must be started
+	// verify if deposit was called before entering
+	// deposit should equal floor price * slots
+	function enterMatch(string calldata _gameId, string calldata randomSeed) external seedLength(randomSeed) {
+		MatchInfo memory matchInfo = matches[_gameId];
+		DepositInfo memory depositInfo = deposits[_gameId][msg.sender];
+		require(matchInfo.matchStatus == MatchStatus.Started, "match not started");
+		require(depositInfo.deposited, "deposit required");
+		require(depositInfo.depositAmount == depositInfo.slots * matchInfo.floorPrice, "incorrect deposit");
 		address[] storage _players = players[_gameId];
 		require(wallets[_gameId][msg.sender] == 0, "re-entry not allowed");
 		for (uint i = 0; i < depositInfo.slots; i++) {
@@ -64,25 +77,39 @@ contract Deathmatch is Matchbase {
 
 	// only by the contract owner or the one that started this match
 	// can only call once because the match end ended after picking a winner
-	function pickWinner(string calldata _gameId, string calldata _randomSeed) public virtual ownerOrStarter(_gameId) {
-		MatchLib.MatchInfo memory matchInfo = matches[_gameId];
+	function pickWinner(string calldata _gameId, string calldata _randomSeed) external virtual ownerOrStarter(_gameId) {
+		MatchInfo memory matchInfo = matches[_gameId];
 		address[] memory _players = players[_gameId];
+		uint noOfPlayers = _players.length;
+		require(noOfPlayers > 0, "no players");
+		ArrayUtils.shuffleAddresses(_players, Rando.getTimestamp());
 		uint largeNumber = Rando.random(Rando.concat(randomSeeds[_gameId], _randomSeed));
-		uint index = MatchLib.getWinnerIndex(matchInfo, block.timestamp, _players.length, largeNumber);
+		require(matchInfo.matchStatus == MatchStatus.Started, "match ended");
+		require(Rando.getTimestamp() >= matchInfo.timeStarted + matchInfo.duration, "too early");
+		uint index = largeNumber % noOfPlayers;
+		require(index > 0 && index <= noOfPlayers, "invalid index");
 		address winner = _players[index];
-		require(prizePools[_gameId] > 0, "pool dry");
-		uint winningAmount = (prizePools[_gameId] * 4) / 5;
+		uint prizePool = prizePools[_gameId];
+		require(prizePool > 0, "pool dry");
+		uint winningAmount = (prizePool * 4) / 5;
 		winnings[_gameId][winner] = winningAmount;
-		matchInfo.matchStatus = MatchLib.MatchStatus.Finished;
+		matchInfo.matchStatus = MatchStatus.Finished;
 		matches[_gameId] = matchInfo;
-		externalWallet.transfer(prizePools[_gameId] - winningAmount);
 		emit WinnerPicked(_gameId, winner, index, winningAmount);
+		// transfer at the end
+		externalWallet.transfer(prizePool - winningAmount);
 	}
 
-	function claimPrize(string calldata _gameId) public payable virtual {
-		uint prizeAmount = MatchLib.getPrizeAmount(_gameId, winnings, claims, address(this).balance, getPrizePool(_gameId));
+	function claimPrize(string calldata _gameId) external payable virtual {
+		uint prizeAmount = winnings[_gameId][msg.sender];
+		require(prizeAmount > 0, "unauthorized");
+		require(claims[_gameId][msg.sender] == 0, "duplicate claim");
+		claims[_gameId][msg.sender] = prizeAmount;
+		require(getPrizePool(_gameId) >= prizeAmount, "pool dry");
+		require(getBalance() >= prizeAmount, "insufficient funds");
 		prizePools[_gameId] -= prizeAmount;
-		payable(msg.sender).transfer(prizeAmount);
 		emit PrizeClaimed(_gameId, msg.sender, prizeAmount);
+		// transfer at the end
+		payable(msg.sender).transfer(prizeAmount);
 	}
 }

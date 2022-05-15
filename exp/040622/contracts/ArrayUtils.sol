@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity 0.8.9;
 
 library ArrayUtils {
 	function shuffleAddresses(address[] memory _players, uint _timestamp) internal pure {

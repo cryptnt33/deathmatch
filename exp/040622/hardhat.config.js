@@ -42,7 +42,7 @@ task("balances", "Prints the list of AVAX account balances", async (taskArgs, hr
  */
 module.exports = {
 	solidity: {
-		version: "0.8.0",
+		version: "0.8.9",
 		optimizer: {
 			enabled: true,
 			runs: 200,

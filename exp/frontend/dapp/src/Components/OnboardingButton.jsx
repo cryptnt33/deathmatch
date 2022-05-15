@@ -3,13 +3,21 @@ import React, { useState, useEffect, useRef } from "react";
 
 const ONBOARD_TEXT = "Click here to install MetaMask!";
 const CONNECT_TEXT = "Connect";
-const CONNECTED_TEXT = "Connected";
 
+// the single purpose of this component is to help users install Metamask
 export function OnboardingButton() {
   const [buttonText, setButtonText] = useState(ONBOARD_TEXT);
   const [isDisabled, setDisabled] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const onboarding = useRef();
+
+  function maskAccount(account) {
+    const visibleLen = 5;
+    return `${account.substring(0, visibleLen)}...${account.substring(
+      account.length - visibleLen,
+      account.length
+    )}`;
+  }
 
   useEffect(() => {
     if (!onboarding.current) {
@@ -20,7 +28,7 @@ export function OnboardingButton() {
   useEffect(() => {
     if (MetaMaskOnboarding.isMetaMaskInstalled()) {
       if (accounts.length > 0) {
-        setButtonText(CONNECTED_TEXT);
+        setButtonText(`Welcome ${maskAccount(accounts[0])}`);
         setDisabled(true);
         onboarding.current.stopOnboarding();
       } else {

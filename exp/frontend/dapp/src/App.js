@@ -1,11 +1,11 @@
-import {useEffect, useState} from "react";
+import {useState} from "react";
 import "./App.css";
 import {ethers} from "ethers";
 import Deathmatch from "./solidity/artifacts/contracts/Deathmatch.sol/Deathmatch.json";
 import {OnboardingButton} from "./Components/OnboardingButton";
 import {AddAvalancheButton} from "./Components/AddAvalancheButton";
 
-const ContractAddress = "0x9A93C1FFA030e158b58D42f1477f561E96752dc9";
+const ContractAddress = "0xfaEC6A97Ff8016fC786bF4942083FE12b643F6dE";
 
 const {v4: uuidv4} = require("uuid");
 
@@ -21,18 +21,6 @@ function App() {
 	const [randomSeed] = useState(uuidv4().substring(0, 6));
 	const [duration, setDuration] = useState(1);
 
-	// console.log(addDays(1));
-
-	let provider;
-
-	useEffect(() => {
-		provider = new ethers.providers.Web3Provider(window.ethereum);
-	}, []);
-
-	function noEth() {
-		return typeof window.ethereum === "undefined";
-	}
-
 	async function requestAccount() {
 		try {
 			await window.ethereum.request({method: "eth_requestAccounts"});
@@ -43,9 +31,9 @@ function App() {
 	}
 
 	async function startMatch() {
-		if (noEth()) return;
 		await requestAccount();
 		try {
+			const provider = new ethers.providers.Web3Provider(window.ethereum);
 			const signer = provider.getSigner();
 			const contract = new ethers.Contract(ContractAddress, Deathmatch.abi, signer);
 			contract.on("MatchStarted", (id, ts) => {
@@ -68,7 +56,6 @@ function App() {
 				<OnboardingButton />
 			</div>
 			<div>
-				<button onClick={requestAccount}>Request Account</button>
 				<label>{error}</label>
 			</div>
 			<div>

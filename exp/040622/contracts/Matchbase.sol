@@ -1,14 +1,34 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity 0.8.9;
 
 import "./OwnableExt.sol";
-import "./MatchLib.sol";
 
 contract Matchbase is OwnableExt {
 	address payable internal externalWallet;
 
-	mapping(string => MatchLib.MatchInfo) internal matches;
-	mapping(string => mapping(address => MatchLib.DepositInfo)) internal deposits;
+	enum MatchStatus {
+		NotStarted,
+		Started,
+		Finished
+	}
+
+	struct MatchInfo {
+		MatchStatus matchStatus;
+		uint timeStarted;
+		uint duration;
+		uint floorPrice;
+		uint maxSlotsPerWallet;
+		address startedBy;
+	}
+
+	struct DepositInfo {
+		uint depositAmount;
+		uint slots;
+		bool deposited;
+	}
+
+	mapping(string => MatchInfo) internal matches;
+	mapping(string => mapping(address => DepositInfo)) internal deposits;
 	mapping(string => address[]) internal players;
 	mapping(string => mapping(address => uint)) internal wallets;
 	mapping(string => string) internal randomSeeds;
@@ -23,6 +43,7 @@ contract Matchbase is OwnableExt {
 	event PrizeClaimed(string, address, uint);
 
 	constructor(address payable _wallet) OwnableExt() {
+		require(_wallet != address(0), "invalid address");
 		externalWallet = _wallet;
 	}
 
@@ -45,25 +66,26 @@ contract Matchbase is OwnableExt {
         property getters/setters
     */
 
-	function setWallet(address payable _wallet) public onlyOwner {
+	function setWallet(address payable _wallet) external onlyOwner {
+		require(_wallet != address(0), "invalid address");
 		address oldWallet = externalWallet;
 		externalWallet = _wallet;
 		emit WalletChanged(externalWallet, oldWallet);
 	}
 
-	function getMatchStatus(string calldata _gameId) public view returns (MatchLib.MatchStatus) {
+	function getMatchStatus(string calldata _gameId) external view returns (MatchStatus) {
 		return matches[_gameId].matchStatus;
 	}
 
-	function getFloorPrice(string calldata _gameId) public view returns (uint) {
+	function getFloorPrice(string calldata _gameId) external view returns (uint) {
 		return matches[_gameId].floorPrice;
 	}
 
-	function getDepositInfo(string calldata _gameId, address by) public view returns (MatchLib.DepositInfo memory) {
+	function getDepositInfo(string calldata _gameId, address by) external view returns (DepositInfo memory) {
 		return deposits[_gameId][by];
 	}
 
-	function getPlayers(string calldata _gameId) public view returns (address[] memory) {
+	function getPlayers(string calldata _gameId) external view returns (address[] memory) {
 		return players[_gameId];
 	}
 
@@ -79,7 +101,7 @@ contract Matchbase is OwnableExt {
 		return address(this).balance;
 	}
 
-	function verifyClaim(string calldata _gameId, address _winner) public view returns (bool) {
+	function verifyClaim(string calldata _gameId, address _winner) external view returns (bool) {
 		require(getPrizeAmount(_gameId, _winner) > 0, "no prize");
 		require(claims[_gameId][_winner] > 0, "can't claim");
 		return true;

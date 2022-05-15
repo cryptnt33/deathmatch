@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity 0.8.9;
 
 library Rando {
 	function concat(string memory a, string memory b) internal pure returns (string memory) {
@@ -7,6 +7,10 @@ library Rando {
 	}
 
 	function random(string memory seed) internal view returns (uint) {
-		return uint(keccak256(abi.encodePacked(seed, block.timestamp)));
+		return uint(keccak256(abi.encodePacked(seed, getTimestamp())));
+	}
+
+	function getTimestamp() internal view returns (uint) {
+		return block.timestamp;
 	}
 }
