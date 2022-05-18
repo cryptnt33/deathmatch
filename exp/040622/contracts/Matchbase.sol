@@ -58,7 +58,10 @@ contract Matchbase is OwnableExt {
 	}
 
 	modifier ownerOrStarter(string calldata _gameId) {
-		require(super.isOwner(msg.sender) || matches[_gameId].startedBy == msg.sender, "only owner or starter");
+		require(
+			super.isOwner(msg.sender) || matches[_gameId].startedBy == msg.sender,
+			"only owner or starter"
+		);
 		_;
 	}
 
@@ -81,7 +84,11 @@ contract Matchbase is OwnableExt {
 		return matches[_gameId].floorPrice;
 	}
 
-	function getDepositInfo(string calldata _gameId, address by) external view returns (DepositInfo memory) {
+	function getDepositInfo(string calldata _gameId, address by)
+		external
+		view
+		returns (DepositInfo memory)
+	{
 		return deposits[_gameId][by];
 	}
 
