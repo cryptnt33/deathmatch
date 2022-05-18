@@ -31,7 +31,8 @@ contract Matchbase is OwnableExt {
 	mapping(string => mapping(address => DepositInfo)) internal deposits;
 	mapping(string => address[]) internal players;
 	mapping(string => mapping(address => uint)) internal wallets;
-	mapping(string => string) internal randomSeeds;
+	// mapping(string => string) internal randomSeeds;
+	address internal vrfContractAddress;
 	mapping(string => uint) internal prizePools;
 	mapping(string => mapping(address => uint)) internal winnings;
 	mapping(string => mapping(address => uint)) internal claims;
@@ -51,11 +52,11 @@ contract Matchbase is OwnableExt {
         modifiers
      */
 
-	modifier seedLength(string calldata seed) {
-		uint length = bytes(seed).length;
-		require(length > 5 && length < 10, "seed length");
-		_;
-	}
+	// modifier seedLength(string calldata seed) {
+	// 	uint length = bytes(seed).length;
+	// 	require(length > 5 && length < 10, "seed length");
+	// 	_;
+	// }
 
 	modifier ownerOrStarter(string calldata _gameId) {
 		require(
@@ -74,6 +75,10 @@ contract Matchbase is OwnableExt {
 		address oldWallet = externalWallet;
 		externalWallet = _wallet;
 		emit WalletChanged(externalWallet, oldWallet);
+	}
+
+	function setVrfAddress(address contractAddress) external onlyOwner {
+		vrfContractAddress = contractAddress;
 	}
 
 	function getMatchStatus(string calldata _gameId) external view returns (MatchStatus) {

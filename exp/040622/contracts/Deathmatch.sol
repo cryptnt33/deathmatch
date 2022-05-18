@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 import "./Matchbase.sol";
 import "./ArrayUtils.sol";
 import "./Rando.sol";
+import "./IVrfConsumer.sol";
 
 contract Deathmatch is Matchbase {
 	constructor(address payable _wallet) Matchbase(_wallet) {}
@@ -17,14 +18,19 @@ contract Deathmatch is Matchbase {
 		string calldata _gameId,
 		uint _floorPrice,
 		uint _maxSlots,
-		uint _duration,
-		string calldata _randomSeed
-	) external ownerOrDelegator seedLength(_randomSeed) {
+		uint _duration
+	) external ownerOrDelegator {
 		uint timestamp = Rando.getTimestamp();
 		MatchInfo memory info = matches[_gameId];
 		require(info.matchStatus == MatchStatus.NotStarted, "match in-progress");
-		matches[_gameId] = MatchInfo(MatchStatus.Started, timestamp, _duration, _floorPrice, _maxSlots, msg.sender);
-		randomSeeds[_gameId] = _randomSeed;
+		matches[_gameId] = MatchInfo(
+			MatchStatus.Started,
+			timestamp,
+			_duration,
+			_floorPrice,
+			_maxSlots,
+			msg.sender
+		);
 		emit MatchStarted(_gameId, timestamp);
 	}
 
@@ -60,30 +66,34 @@ contract Deathmatch is Matchbase {
 	// match must be started
 	// verify if deposit was called before entering
 	// deposit should equal floor price * slots
-	function enterMatch(string calldata _gameId, string calldata randomSeed) external seedLength(randomSeed) {
+	function enterMatch(string calldata _gameId) external {
 		MatchInfo memory matchInfo = matches[_gameId];
 		DepositInfo memory depositInfo = deposits[_gameId][msg.sender];
 		require(matchInfo.matchStatus == MatchStatus.Started, "match not started");
 		require(depositInfo.deposited, "deposit required");
-		require(depositInfo.depositAmount == depositInfo.slots * matchInfo.floorPrice, "incorrect deposit");
+		require(
+			depositInfo.depositAmount == depositInfo.slots * matchInfo.floorPrice,
+			"incorrect deposit"
+		);
 		address[] storage _players = players[_gameId];
 		require(wallets[_gameId][msg.sender] == 0, "re-entry not allowed");
 		for (uint i = 0; i < depositInfo.slots; i++) {
 			_players.push(msg.sender);
 		}
 		wallets[_gameId][msg.sender] = 1;
-		randomSeeds[_gameId] = Rando.concat(randomSeeds[_gameId], randomSeed);
 	}
 
 	// only by the contract owner or the one that started this match
 	// can only call once because the match end ended after picking a winner
-	function pickWinner(string calldata _gameId, string calldata _randomSeed) external virtual ownerOrStarter(_gameId) {
+	function pickWinner(string calldata _gameId) external virtual ownerOrStarter(_gameId) {
 		MatchInfo memory matchInfo = matches[_gameId];
 		address[] memory _players = players[_gameId];
 		uint noOfPlayers = _players.length;
 		require(noOfPlayers > 0, "no players");
 		ArrayUtils.shuffleAddresses(_players, Rando.getTimestamp());
-		uint largeNumber = Rando.random(Rando.concat(randomSeeds[_gameId], _randomSeed));
+		uint largeNumber = Rando.random(IVrfConsumer(vrfContractAddress).getSeed());
+		IVrfConsumer(vrfContractAddress).popSeed();
+		// uint largeNumber = 0;
 		require(matchInfo.matchStatus == MatchStatus.Started, "match ended");
 		require(Rando.getTimestamp() >= matchInfo.timeStarted + matchInfo.duration, "too early");
 		uint index = largeNumber % noOfPlayers;
