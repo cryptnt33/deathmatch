@@ -38,4 +38,13 @@ describe("[random.org] generating a true random string...", async function () {
 		await contractInstance.popSeeds(limit);
 		expect(await contractInstance.getSeedsLength()).to.equal(13);
 	});
+
+	it("append seeds", async function () {
+		const {data} = await axios.get(query);
+		const seeds = data.split("\n").slice(0, -1);
+		await contractInstance.appendSeeds(seeds);
+		const seed = await contractInstance.getSeed();
+		expect(seeds[seeds.length - 1]).to.equal(seed);
+		expect(await contractInstance.getSeedsLength()).to.equal(113);
+	});
 });

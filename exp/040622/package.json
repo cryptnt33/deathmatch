@@ -10,6 +10,7 @@
 		"slint": "slither . --disable-color --filter-paths 'node_modules'",
 		"gpg": "export GPG_TTY=$(tty)",
 		"deploy": "npm run test && npx hardhat run --network fuji scripts/deploy-dm.js && rsync -a --delete ./artifacts ../frontend/dapp/src/solidity/",
+		"deploy-vrf": "mocha --g \"[random.org]\" && npx hardhat run --network fuji scripts/deploy-vrf.js && rsync -a --delete ./artifacts ../frontend/dapp/src/solidity/",
 		"node": "npx hardhat node",
 		"sync": "npx hardhat compile && rsync -a --delete ./artifacts ../frontend/dapp/src/solidity/"
 	},

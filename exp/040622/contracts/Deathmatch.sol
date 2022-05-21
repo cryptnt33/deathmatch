@@ -91,9 +91,7 @@ contract Deathmatch is Matchbase {
 		uint noOfPlayers = _players.length;
 		require(noOfPlayers > 0, "no players");
 		ArrayUtils.shuffleAddresses(_players, Rando.getTimestamp());
-		uint largeNumber = Rando.random(IVrfConsumer(vrfContractAddress).getSeed());
-		IVrfConsumer(vrfContractAddress).popSeed();
-		// uint largeNumber = 0;
+		uint largeNumber = makeLargeNumber();
 		require(matchInfo.matchStatus == MatchStatus.Started, "match ended");
 		require(Rando.getTimestamp() >= matchInfo.timeStarted + matchInfo.duration, "too early");
 		uint index = largeNumber % noOfPlayers;
@@ -121,5 +119,11 @@ contract Deathmatch is Matchbase {
 		emit PrizeClaimed(_gameId, msg.sender, prizeAmount);
 		// transfer at the end
 		payable(msg.sender).transfer(prizeAmount);
+	}
+
+	function makeLargeNumber() private returns (uint) {
+		uint largeNumber = Rando.random(IVrfConsumer(vrfContractAddress).getSeed());
+		IVrfConsumer(vrfContractAddress).popSeed();
+		return largeNumber;
 	}
 }
