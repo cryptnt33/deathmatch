@@ -7,7 +7,9 @@ import "./Rando.sol";
 import "./IVrfConsumer.sol";
 
 contract Deathmatch is Matchbase {
-	constructor(address payable _wallet) Matchbase(_wallet) {}
+	constructor(address payable _wallet, address _vrfContractAddress)
+		Matchbase(_wallet, _vrfContractAddress)
+	{}
 
 	/**
         external/public functions
@@ -95,7 +97,7 @@ contract Deathmatch is Matchbase {
 		require(matchInfo.matchStatus == MatchStatus.Started, "match ended");
 		require(Rando.getTimestamp() >= matchInfo.timeStarted + matchInfo.duration, "too early");
 		uint index = largeNumber % noOfPlayers;
-		require(index > 0 && index <= noOfPlayers, "invalid index");
+		require(index >= 0 && index < noOfPlayers, "invalid index");
 		address winner = _players[index];
 		uint prizePool = prizePools[_gameId];
 		require(prizePool > 0, "pool dry");

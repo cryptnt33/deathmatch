@@ -1,13 +1,12 @@
 const chai = require("chai");
 const {expect, assert} = chai;
 const {ethers} = require("hardhat");
-const {v4: uuidv4} = require("uuid");
-const {setupMatches} = require("./setup.js");
+const {setupMatches, vrfAddress} = require("./setup.js");
 
 describe("claiming a prize...", async function () {
 	try {
 		let contractFactory, contractInstance, accounts, externalWallet, winner;
-		const randomSeed = uuidv4().substring(0, 6);
+		// const randomSeed = uuidv4().substring(0, 6);
 		let gameId, players;
 
 		addressToSigner = function (address) {
@@ -20,7 +19,7 @@ describe("claiming a prize...", async function () {
 		};
 
 		pickWinner = async function () {
-			const tx = await (await contractInstance.pickWinner(gameId, randomSeed)).wait();
+			const tx = await (await contractInstance.pickWinner(gameId)).wait();
 			winner = tx.events[0].args[1];
 			const index = tx.events[0].args[2].toNumber();
 			const prizeAmount = tx.events[0].args[3];
@@ -32,7 +31,7 @@ describe("claiming a prize...", async function () {
 				accounts = await ethers.getSigners();
 				externalWallet = accounts[10];
 				contractFactory = await ethers.getContractFactory("Deathmatch");
-				contractInstance = await contractFactory.deploy(externalWallet.address);
+				contractInstance = await contractFactory.deploy(externalWallet.address, vrfAddress);
 				await contractInstance.deployed();
 				players = [
 					{
@@ -49,7 +48,7 @@ describe("claiming a prize...", async function () {
 					},
 				];
 				// console.log(accounts[0]);
-				gameId = await setupMatches(contractInstance, players, randomSeed);
+				gameId = await setupMatches(contractInstance, players);
 
 				assert.isOk(true);
 			} catch (e) {

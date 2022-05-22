@@ -1,19 +1,19 @@
 const {v4: uuidv4} = require("uuid");
 const {ethers} = require("hardhat");
 const pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
+// fuji vrf contract address: 0xA689c9f709eD11b2C742584Eea2F7Fa615C70f3C
+const vrfAddress = process.env.VrfAccountAddress ? process.env.VrfAccountAddress : "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
-const vrfAddress = "0xA689c9f709eD11b2C742584Eea2F7Fa615C70f3C";
-
-startMatch = async function (contractInstance, gameId = uuidv4(), floor = pointFiveEther, maxSlots = 10, duration = 5, randomSeed = uuidv4().substring(0, 6)) {
-	await contractInstance.startMatch(gameId, floor, maxSlots, duration, randomSeed);
+startMatch = async function (contractInstance, gameId = uuidv4(), floor = pointFiveEther, maxSlots = 10, duration = 5) {
+	await contractInstance.startMatch(gameId, floor, maxSlots, duration);
 	return gameId;
 };
 
-startMatchTx = async function (contractInstance, gameId = uuidv4(), floor = pointFiveEther, maxSlots = 10, duration = 5, randomSeed = uuidv4().substring(0, 6)) {
-	return contractInstance.startMatch(gameId, floor, maxSlots, duration, randomSeed);
+startMatchTx = async function (contractInstance, gameId = uuidv4(), floor = pointFiveEther, maxSlots = 10, duration = 5) {
+	return contractInstance.startMatch(gameId, floor, maxSlots, duration);
 };
 
-setupMatches = async function (contractInstance, players, randomSeed) {
+setupMatches = async function (contractInstance, players) {
 	const gameId = await startMatch(contractInstance);
 
 	for (i = 0; i < players.length; i++) {
@@ -23,7 +23,7 @@ setupMatches = async function (contractInstance, players, randomSeed) {
 			value: pointFiveEther.mul(players[i].slots),
 		});
 		// enter match
-		await player.enterMatch(gameId, randomSeed);
+		await player.enterMatch(gameId);
 	}
 
 	return gameId;

@@ -2,7 +2,7 @@ const chai = require("chai");
 const {expect, assert} = chai;
 const {ethers} = require("hardhat");
 const {v4: uuidv4} = require("uuid");
-const {startMatch, startMatchTx} = require("./setup");
+const {startMatch, startMatchTx, vrfAddress} = require("./setup");
 
 describe("starting a match...", async function () {
 	let contractFactory, contractInstance, accounts, externalWallet;
@@ -14,7 +14,7 @@ describe("starting a match...", async function () {
 			accounts = await ethers.getSigners();
 			externalWallet = accounts[10];
 			contractFactory = await ethers.getContractFactory("Deathmatch");
-			contractInstance = await contractFactory.deploy(externalWallet.address);
+			contractInstance = await contractFactory.deploy(externalWallet.address, vrfAddress);
 			await contractInstance.deployed();
 			assert.isOk(true);
 		} catch (e) {

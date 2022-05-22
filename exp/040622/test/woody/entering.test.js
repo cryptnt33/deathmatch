@@ -2,7 +2,7 @@ const chai = require("chai");
 const {expect, assert} = chai;
 const {ethers} = require("hardhat");
 const {v4: uuidv4} = require("uuid");
-const {startMatch, startMatchTx} = require("./setup");
+const {startMatch, startMatchTx, vrfAddress} = require("./setup");
 
 // any external account can enter a match
 // all deposits are made to an external multi-sig wallet
@@ -10,14 +10,14 @@ describe("entering a match...", async function () {
 	let contractFactory, contractInstance, accounts, externalWallet;
 	const pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
 	const pointSevenFiveEther = ethers.utils.parseUnits("0.75", "ether");
-	const randomSeed = uuidv4().substring(0, 6);
+	// const randomSeed = uuidv4().substring(0, 6);
 
 	before("deploy", async function () {
 		try {
 			accounts = await ethers.getSigners();
 			externalWallet = accounts[10];
 			contractFactory = await ethers.getContractFactory("Deathmatch");
-			contractInstance = await contractFactory.deploy(externalWallet.address);
+			contractInstance = await contractFactory.deploy(externalWallet.address, vrfAddress);
 			await contractInstance.deployed();
 			assert.isOk(true);
 		} catch (e) {
@@ -81,7 +81,7 @@ describe("entering a match...", async function () {
 		const depositRequired = pointFiveEther.mul(slots);
 		await tempInstance.depositFee(gameId, slots, {value: depositRequired});
 		// enter
-		await tempInstance.enterMatch(gameId, randomSeed);
+		await tempInstance.enterMatch(gameId);
 		const players = await tempInstance.getPlayers(gameId);
 
 		expect(players.length).to.equal(slots);
@@ -108,10 +108,10 @@ describe("entering a match...", async function () {
 			value: depositRequired,
 		});
 		// enter match
-		await contractInstance.enterMatch(gameId, randomSeed);
+		await contractInstance.enterMatch(gameId);
 		// expect repeat entries to fail
-		await expect(contractInstance.enterMatch(gameId, randomSeed)).to.be.revertedWith("re-entry not allowed");
-		await expect(contractInstance.enterMatch(gameId, randomSeed)).to.be.revertedWith("re-entry not allowed");
+		await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("re-entry not allowed");
+		await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("re-entry not allowed");
 		const players = await contractInstance.getPlayers(gameId);
 		expect(players.length).to.equal(5);
 	});
@@ -129,14 +129,14 @@ describe("entering a match...", async function () {
 			value: depositRequired,
 		});
 		// account#1 enter match
-		await player1.enterMatch(gameId, randomSeed);
+		await player1.enterMatch(gameId);
 
 		// account#2 deposit ethers
 		await player2.depositFee(gameId, slots, {
 			value: depositRequired,
 		});
 		// account#2 enter match
-		await player2.enterMatch(gameId, randomSeed);
+		await player2.enterMatch(gameId);
 
 		// assert total number of slots
 		// should be slots times 2 because two players entered the game in this test
@@ -171,7 +171,7 @@ describe("entering a match...", async function () {
 	});
 	it("can't enter match without a deposit", async function () {
 		const gameId = await startMatch(contractInstance);
-		await expect(contractInstance.enterMatch(gameId, randomSeed)).to.be.revertedWith("deposit required");
+		await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("deposit required");
 	});
 	it("can deposit fee only if the match in progress", async function () {
 		const gameId = uuidv4();
@@ -179,6 +179,6 @@ describe("entering a match...", async function () {
 	});
 	it("can enter a match only if its in progress", async function () {
 		const gameId = uuidv4();
-		await expect(contractInstance.enterMatch(gameId, randomSeed)).to.be.revertedWith("match not started");
+		await expect(contractInstance.enterMatch(gameId)).to.be.revertedWith("match not started");
 	});
 });

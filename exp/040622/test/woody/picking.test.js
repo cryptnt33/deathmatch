@@ -2,12 +2,11 @@ const chai = require("chai");
 const {expect, assert} = chai;
 const {ethers} = require("hardhat");
 const {v4: uuidv4} = require("uuid");
-const {setupMatches} = require("./setup");
+const {setupMatches, vrfAddress} = require("./setup");
 
 describe("picking a match winner...", async function () {
 	let contractFactory, contractInstance, accounts, externalWallet;
 	const pointFiveEther = ethers.utils.parseUnits("0.5", "ether");
-	const randomSeed = uuidv4().substring(0, 6);
 	let gameId, players;
 
 	before("deploy", async function () {
@@ -15,7 +14,7 @@ describe("picking a match winner...", async function () {
 			accounts = await ethers.getSigners();
 			externalWallet = accounts[10];
 			contractFactory = await ethers.getContractFactory("Deathmatch");
-			contractInstance = await contractFactory.deploy(externalWallet.address);
+			contractInstance = await contractFactory.deploy(externalWallet.address, vrfAddress);
 			await contractInstance.deployed();
 
 			players = [
@@ -33,7 +32,7 @@ describe("picking a match winner...", async function () {
 				},
 			];
 
-			gameId = await setupMatches(contractInstance, players, randomSeed);
+			gameId = await setupMatches(contractInstance, players);
 
 			assert.isOk(true);
 		} catch (e) {
@@ -48,7 +47,7 @@ describe("picking a match winner...", async function () {
 		// console.log(ethers.utils.formatEther(prizePool));
 	});
 	it("randomly from players in the game", async function () {
-		const tx = await (await contractInstance.pickWinner(gameId, randomSeed)).wait();
+		const tx = await (await contractInstance.pickWinner(gameId)).wait();
 		const winner = tx.events[0].args[1];
 		const index = tx.events[0].args[2].toNumber();
 		const prizeAmount = tx.events[0].args[3];
@@ -70,10 +69,10 @@ describe("picking a match winner...", async function () {
 	it("only by owner or starter", async function () {
 		// change the context to some account other than the one that started
 		const tempPlayer = await contractInstance.connect(players[0].account);
-		await expect(tempPlayer.pickWinner(gameId, randomSeed)).to.be.revertedWith("only owner or starter");
+		await expect(tempPlayer.pickWinner(gameId)).to.be.revertedWith("only owner or starter");
 	});
 	it("only once after the match has started", async function () {
-		await expect(contractInstance.pickWinner(gameId, randomSeed)).to.be.revertedWith("match ended");
+		await expect(contractInstance.pickWinner(gameId)).to.be.revertedWith("match ended");
 	});
 	xit("shuffle", async function () {
 		const preShuffle1 = [1, 1, 1, 2, 3, 3, 3, 4, 4, 4, 4, 5, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7];

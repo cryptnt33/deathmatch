@@ -5,6 +5,7 @@ import "./OwnableExt.sol";
 
 contract Matchbase is OwnableExt {
 	address payable internal externalWallet;
+	address internal vrfContractAddress;
 
 	enum MatchStatus {
 		NotStarted,
@@ -31,8 +32,6 @@ contract Matchbase is OwnableExt {
 	mapping(string => mapping(address => DepositInfo)) internal deposits;
 	mapping(string => address[]) internal players;
 	mapping(string => mapping(address => uint)) internal wallets;
-	// mapping(string => string) internal randomSeeds;
-	address internal vrfContractAddress;
 	mapping(string => uint) internal prizePools;
 	mapping(string => mapping(address => uint)) internal winnings;
 	mapping(string => mapping(address => uint)) internal claims;
@@ -43,9 +42,10 @@ contract Matchbase is OwnableExt {
 	event WinnerPicked(string, address, uint, uint);
 	event PrizeClaimed(string, address, uint);
 
-	constructor(address payable _wallet) OwnableExt() {
+	constructor(address payable _wallet, address _vrfContractAddress) OwnableExt() {
 		require(_wallet != address(0), "invalid address");
 		externalWallet = _wallet;
+		vrfContractAddress = _vrfContractAddress;
 	}
 
 	/**

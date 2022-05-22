@@ -12,7 +12,9 @@ describe("[random.org] generating a true random string...", async function () {
 			accounts = await ethers.getSigners();
 			contractFactory = await ethers.getContractFactory("OffchainVrf");
 			contractInstance = await contractFactory.deploy();
-			await contractInstance.deployed();
+			const tx = await contractInstance.deployed();
+			process.env.VrfAccountAddress = tx.address;
+			console.log(process.env.VrfAccountAddress);
 			assert.isOk(true);
 		} catch (e) {
 			console.log(e);
@@ -22,7 +24,7 @@ describe("[random.org] generating a true random string...", async function () {
 
 	it("set seeds", async function () {
 		// const {data} = await axios.get(query);
-		const data = "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\n";
+		const data = "abcdefghijklmnop ".split("").join("\n");
 		const seeds = data.split("\n").slice(0, -1);
 		await contractInstance.overwriteSeeds(seeds);
 		const seed = await contractInstance.getSeed();
@@ -40,11 +42,12 @@ describe("[random.org] generating a true random string...", async function () {
 	});
 
 	it("append seeds", async function () {
-		const {data} = await axios.get(query);
+		// const {data} = await axios.get(query);
+		const data = "qrstuvwxyz123456789 ".split("").join("\n");
 		const seeds = data.split("\n").slice(0, -1);
 		await contractInstance.appendSeeds(seeds);
 		const seed = await contractInstance.getSeed();
 		expect(seeds[seeds.length - 1]).to.equal(seed);
-		expect(await contractInstance.getSeedsLength()).to.equal(113);
+		expect(await contractInstance.getSeedsLength()).to.equal(32);
 	});
 });
