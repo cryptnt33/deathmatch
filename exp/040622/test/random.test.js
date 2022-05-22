@@ -45,7 +45,10 @@ describe("[random.org] generating a true random string...", async function () {
 		// const {data} = await axios.get(query);
 		const data = "qrstuvwxyz123456789 ".split("").join("\n");
 		const seeds = data.split("\n").slice(0, -1);
-		await contractInstance.appendSeeds(seeds);
+		const tx = await contractInstance.appendSeeds(seeds); //491980
+		// const tx = await contractInstance.appendSeeds2(seeds);
+		// const tx1 = await tx.wait();
+		// console.log("gas cost", tx1.cumulativeGasUsed.mul(tx1.effectiveGasPrice));
 		const seed = await contractInstance.getSeed();
 		expect(seeds[seeds.length - 1]).to.equal(seed);
 		expect(await contractInstance.getSeedsLength()).to.equal(32);

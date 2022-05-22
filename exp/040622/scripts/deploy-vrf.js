@@ -6,7 +6,9 @@ async function main() {
 
 	await instance.deployed();
 
-	console.log("OffchainVrf deployed to:", instance.address);
+	process.env.VrfAccountAddress = instance.address;
+
+	console.log(`OffchainVrf deployed to: ${instance.address}`);
 }
 
 main()

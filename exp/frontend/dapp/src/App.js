@@ -5,7 +5,8 @@ import Deathmatch from "./solidity/artifacts/contracts/Deathmatch.sol/Deathmatch
 import {OnboardingButton} from "./Components/OnboardingButton";
 import {AddAvalancheButton} from "./Components/AddAvalancheButton";
 
-const ContractAddress = "0xfaEC6A97Ff8016fC786bF4942083FE12b643F6dE";
+const MatchContractAddress = "0xDA2b8ac3Ae992c2a2F51e4dFdf98070e62F91294";
+const VrfContractAddress = "0xdFDC88a9c17479D0032158031F79fbf08126fBba";
 
 const {v4: uuidv4} = require("uuid");
 
@@ -18,7 +19,6 @@ function App() {
 	const [floorPrice, setFloorPrice] = useState(1);
 	const [slots, setSlots] = useState(1);
 	const [matchId] = useState(uuidv4());
-	const [randomSeed] = useState(uuidv4().substring(0, 6));
 	const [duration, setDuration] = useState(1);
 
 	async function requestAccount() {
@@ -35,11 +35,11 @@ function App() {
 		try {
 			const provider = new ethers.providers.Web3Provider(window.ethereum);
 			const signer = provider.getSigner();
-			const contract = new ethers.Contract(ContractAddress, Deathmatch.abi, signer);
+			const contract = new ethers.Contract(MatchContractAddress, Deathmatch.abi, signer);
 			contract.on("MatchStarted", (id, ts) => {
 				console.log("MatchStarted triggered", id, ts);
 			});
-			const tx = await contract.startMatch(matchId, parseInt(floorPrice), parseInt(slots), addDays(parseInt(duration)), randomSeed);
+			const tx = await contract.startMatch(matchId, parseInt(floorPrice), parseInt(slots), addDays(parseInt(duration)));
 			await tx.wait();
 		} catch (e) {
 			console.log(e);
@@ -80,9 +80,6 @@ function App() {
 						<option>4</option>
 						<option>5</option>
 					</select>
-				</div>
-				<div>
-					<label>Random seed: {randomSeed}</label>
 				</div>
 				<div>
 					<label>Duration (in number of days)</label>
