@@ -4,13 +4,16 @@ pragma solidity 0.8.9;
 import "./OwnableExt.sol";
 
 contract Matchbase is OwnableExt {
-	address payable internal externalWallet;
-	address internal vrfContractAddress;
-
 	enum MatchStatus {
 		NotStarted,
 		Started,
 		Finished
+	}
+
+	struct ClaimPercent {
+		uint winner;
+		uint protocol;
+		uint partner;
 	}
 
 	struct MatchInfo {
@@ -19,7 +22,7 @@ contract Matchbase is OwnableExt {
 		uint duration;
 		uint floorPrice;
 		uint maxSlotsPerWallet;
-		address startedBy;
+		address partner;
 	}
 
 	struct DepositInfo {
@@ -28,19 +31,25 @@ contract Matchbase is OwnableExt {
 		bool deposited;
 	}
 
-	mapping(string => MatchInfo) internal matches;
-	mapping(string => mapping(address => DepositInfo)) internal deposits;
-	mapping(string => address[]) internal players;
-	mapping(string => mapping(address => uint)) internal wallets;
-	mapping(string => uint) internal prizePools;
-	mapping(string => mapping(address => uint)) internal winnings;
-	mapping(string => mapping(address => uint)) internal claims;
+	mapping(string => MatchInfo) internal matches; // metadata about matches
+	mapping(string => mapping(address => DepositInfo)) internal deposits; // metadata about deposits
+	mapping(string => address[]) internal players; // slots per game
+	mapping(string => mapping(address => uint)) internal wallets; // unique wallets per game
+	mapping(string => uint) internal prizePools; // all the avax deposited per game
+	mapping(string => mapping(address => uint)) internal winnings; // claimed by winners
+	mapping(string => mapping(address => uint)) internal rewards; // claimed by partners
+	mapping(string => mapping(address => uint)) internal claims; // all claims
+
+	address payable internal externalWallet;
+	address internal vrfContractAddress;
+	ClaimPercent internal defaultClaimPct = ClaimPercent(80, 15, 5); // total of all three must be 100
 
 	event MatchStarted(string, uint);
 	event WalletChanged(address, address);
 	event FeeDeposited(string, address, uint);
 	event WinnerPicked(string, address, uint, uint);
 	event PrizeClaimed(string, address, uint);
+	event RewardClaimed(string, address, uint);
 
 	constructor(address payable _wallet, address _vrfContractAddress) OwnableExt() {
 		require(_wallet != address(0), "invalid address");
@@ -58,9 +67,9 @@ contract Matchbase is OwnableExt {
 	// 	_;
 	// }
 
-	modifier ownerOrStarter(string calldata _gameId) {
+	modifier ownerOrPartner(string calldata _gameId) {
 		require(
-			super.isOwner(msg.sender) || matches[_gameId].startedBy == msg.sender,
+			super.isOwner(msg.sender) || matches[_gameId].partner == msg.sender,
 			"only owner or starter"
 		);
 		_;
@@ -109,13 +118,24 @@ contract Matchbase is OwnableExt {
 		return winnings[_gameId][_winner];
 	}
 
+	function getRewardAmount(string calldata _gameId, address _partner)
+		public
+		view
+		returns (uint)
+	{
+		return rewards[_gameId][_partner];
+	}
+
 	function getBalance() public view returns (uint) {
 		return address(this).balance;
 	}
 
-	function verifyClaim(string calldata _gameId, address _winner) external view returns (bool) {
-		require(getPrizeAmount(_gameId, _winner) > 0, "no prize");
-		require(claims[_gameId][_winner] > 0, "can't claim");
+	function verifyClaim(
+		string calldata _gameId,
+		address _claimer,
+		uint amount
+	) external view returns (bool) {
+		require(claims[_gameId][_claimer] == amount, "failed");
 		return true;
 	}
 }

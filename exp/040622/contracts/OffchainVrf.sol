@@ -19,8 +19,7 @@ contract OffchainVrf is OwnableExt, IVrfConsumer {
 
 	function getSeed() external view returns (string memory) {
 		require(seeds.length >= 1, "empty");
-		string memory last = seeds[seeds.length - 1];
-		return last;
+		return seeds[seeds.length - 1];
 	}
 
 	function popSeed() external {

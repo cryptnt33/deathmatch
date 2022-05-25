@@ -39,6 +39,8 @@ function App() {
 			contract.on("MatchStarted", (id, ts) => {
 				console.log("MatchStarted triggered", id, ts);
 			});
+			// if the account is owner then set vrf contract address
+			// set up an admin section
 			const tx = await contract.startMatch(matchId, parseInt(floorPrice), parseInt(slots), addDays(parseInt(duration)));
 			await tx.wait();
 		} catch (e) {
