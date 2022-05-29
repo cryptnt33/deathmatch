@@ -67,10 +67,12 @@ contract Matchbase is OwnableExt {
 	// 	_;
 	// }
 
-	modifier ownerOrPartner(string calldata _gameId) {
+	modifier ownerPartnerOrDelegator(string calldata _gameId) {
 		require(
-			super.isOwner(msg.sender) || matches[_gameId].partner == msg.sender,
-			"only owner or starter"
+			isOwner(msg.sender) ||
+				isDelegator(msg.sender) ||
+				matches[_gameId].partner == msg.sender,
+			"unauthorized"
 		);
 		_;
 	}

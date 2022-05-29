@@ -15,13 +15,13 @@ contract Deathmatch is Matchbase {
         external/public functions
     */
 
-	// only owners or delegators can start a match
+	// only owners or partners can start a match
 	function startMatch(
 		string calldata _gameId,
 		uint _floorPrice,
 		uint _maxSlots,
 		uint _duration
-	) external ownerOrDelegator {
+	) external ownerPartnerOrDelegator(_gameId) {
 		uint timestamp = Rando.getTimestamp();
 		MatchInfo memory info = matches[_gameId];
 		require(info.matchStatus == MatchStatus.NotStarted, "match in-progress");
@@ -92,7 +92,11 @@ contract Deathmatch is Matchbase {
 
 	// only by the contract owner or the one that started this match
 	// can only call once because the match end ended after picking a winner
-	function pickWinner(string calldata _gameId) external virtual ownerOrPartner(_gameId) {
+	function pickWinner(string calldata _gameId)
+		external
+		virtual
+		ownerPartnerOrDelegator(_gameId)
+	{
 		MatchInfo memory matchInfo = matches[_gameId];
 		require(matchInfo.matchStatus == MatchStatus.Started, "match ended");
 		require(Rando.getTimestamp() >= matchInfo.timeStarted + matchInfo.duration, "too early");

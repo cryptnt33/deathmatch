@@ -35,13 +35,13 @@ describe("starting a match...", async function () {
 		await tx1;
 		await expect(tx2).to.be.revertedWith("match in-progress");
 	});
-	it("non-owners cannot start a match", async function () {
+	it("non-owners, non-partners cannot start a match", async function () {
 		const gameId = uuidv4();
 		// switch accounts
 		const tempInstance = await contractInstance.connect(accounts[2]);
 		expect(await tempInstance.isOwner(accounts[0].address)).to.equal(true);
 		expect(await tempInstance.isOwner(accounts[2].address)).to.equal(false);
-		await expect(startMatchTx(tempInstance, gameId)).to.be.revertedWith("only owner or delegator");
+		await expect(startMatchTx(tempInstance, gameId)).to.be.revertedWith("unauthorized");
 	});
 	it("more than one match can start at a time", async function () {
 		// wait to capture event emitted

@@ -66,10 +66,10 @@ describe("picking a match winner...", async function () {
 		// console.log(ethers.utils.formatEther(prizePool), ethers.utils.formatEther(walletBalance), ethers.utils.formatEther(prizeAmount));
 		assert(walletBalance.sub(ethers.utils.parseUnits("10000", "ether")) >= prizePool.sub(prizeAmount));
 	});
-	it("only by owner or starter", async function () {
+	it("only by owner or partner", async function () {
 		// change the context to some account other than the one that started
 		const tempPlayer = await contractInstance.connect(players[0].account);
-		await expect(tempPlayer.pickWinner(gameId)).to.be.revertedWith("only owner or starter");
+		await expect(tempPlayer.pickWinner(gameId)).to.be.revertedWith("unauthorized");
 	});
 	it("only once after the match has started", async function () {
 		await expect(contractInstance.pickWinner(gameId)).to.be.revertedWith("match ended");
