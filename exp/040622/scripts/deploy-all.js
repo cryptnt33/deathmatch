@@ -1,15 +1,14 @@
+const assert = require("assert");
 const {ethers} = require("hardhat");
 
 async function deployGame() {
-	// We get the contract to deploy
-	const accounts = await ethers.getSigners();
-	const externalWallet = accounts[0];
 	const factory = await ethers.getContractFactory("Deathmatch");
-	console.log(`VrfAccountAddress: ${process.env.VrfAccountAddress}`);
-	const instance = await factory.deploy(externalWallet.address, process.env.VrfAccountAddress);
 
+	if (!process.env.GameExternalWalletAddress) throw new Error("missing external wallet env");
+	if (!process.env.VrfAccountAddress) throw new Error("missing vrf contract env");
+
+	const instance = await factory.deploy(process.env.GameExternalWalletAddress, process.env.VrfAccountAddress);
 	await instance.deployed();
-
 	console.log("DM deployed to:", instance.address);
 }
 

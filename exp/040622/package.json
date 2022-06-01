@@ -5,11 +5,9 @@
 	"main": "index.js",
 	"scripts": {
 		"test": "solhint 'contracts/**/*.sol' && npx hardhat coverage",
-		"contracts": "npx hardhat size-contracts",
-		"test-slow": "mocha --timeout 1000000",
 		"slint": "slither . --disable-color --filter-paths 'node_modules'",
 		"gpg": "export GPG_TTY=$(tty)",
-		"deploy-fuji": "npm run test && npx hardhat run --network fuji scripts/deploy-dm.js && rsync -a --delete ./artifacts ../frontend/dapp/src/solidity/",
+		"deploy-fuji": "source ~/.bash_profile && npm run test && npx hardhat run --network fuji scripts/deploy-all.js && rsync -a --delete ./artifacts ../frontend/dapp/src/solidity/",
 		"node": "npx hardhat node",
 		"sync": "npx hardhat compile && rsync -a --delete ./artifacts ../frontend/dapp/src/solidity/"
 	},

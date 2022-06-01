@@ -2,11 +2,11 @@ import {useState} from "react";
 import "./App.css";
 import {ethers} from "ethers";
 import Deathmatch from "./solidity/artifacts/contracts/Deathmatch.sol/Deathmatch.json";
-import {OnboardingButton} from "./Components/OnboardingButton";
-import {AddAvalancheButton} from "./Components/AddAvalancheButton";
+import {OnboardingButton} from "./Components/Toolbar/OnboardingButton";
+import {AddAvalancheButton} from "./Components/Toolbar/AddAvalancheButton";
 
-const MatchContractAddress = "0xDA2b8ac3Ae992c2a2F51e4dFdf98070e62F91294";
-const VrfContractAddress = "0xdFDC88a9c17479D0032158031F79fbf08126fBba";
+const MatchContractAddress = "0xCE4aa790695f7D64B451613DFB529eB6347C3d38";
+// const VrfContractAddress = "0x5055283F13ae12029fF19b2e5392626EDdd559e3";
 
 const {v4: uuidv4} = require("uuid");
 
