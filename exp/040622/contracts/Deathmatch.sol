@@ -90,13 +90,9 @@ contract Deathmatch is Matchbase {
 		wallets[_gameId][msg.sender] = 1;
 	}
 
-	// only by the contract owner or the one that started this match
+	// can only be called by the partner or a player
 	// can only call once because the match end ended after picking a winner
-	function pickWinner(string calldata _gameId)
-		external
-		virtual
-		ownerPartnerOrDelegator(_gameId)
-	{
+	function pickWinner(string calldata _gameId) external virtual partnerOrPlayer(_gameId) {
 		MatchInfo memory matchInfo = matches[_gameId];
 		require(matchInfo.matchStatus == MatchStatus.Started, "match ended");
 		require(Rando.getTimestamp() >= matchInfo.timeStarted + matchInfo.duration, "too early");

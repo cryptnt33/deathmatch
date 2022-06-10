@@ -2,6 +2,7 @@
 pragma solidity 0.8.9;
 
 import "./OwnableExt.sol";
+import "./ArrayUtils.sol";
 
 contract Matchbase is OwnableExt {
 	enum MatchStatus {
@@ -57,21 +58,20 @@ contract Matchbase is OwnableExt {
 		vrfContractAddress = _vrfContractAddress;
 	}
 
-	/**
-        modifiers
-     */
-
-	// modifier seedLength(string calldata seed) {
-	// 	uint length = bytes(seed).length;
-	// 	require(length > 5 && length < 10, "seed length");
-	// 	_;
-	// }
-
 	modifier ownerPartnerOrDelegator(string calldata _gameId) {
 		require(
 			isOwner(msg.sender) ||
 				isDelegator(msg.sender) ||
 				matches[_gameId].partner == msg.sender,
+			"unauthorized"
+		);
+		_;
+	}
+
+	modifier partnerOrPlayer(string calldata _gameId) {
+		require(
+			matches[_gameId].partner == msg.sender ||
+				ArrayUtils.exists(players[_gameId], msg.sender),
 			"unauthorized"
 		);
 		_;

@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 
 library ArrayUtils {
-	function compareStrings(string memory a, string memory b) public pure returns (bool) {
+	function compareStrings(string memory a, string memory b) internal pure returns (bool) {
 		return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
 	}
 
@@ -18,16 +18,10 @@ library ArrayUtils {
 		require(len == _players.length, "shuffle failed");
 	}
 
-	// function evict(string[] memory source, string memory target)
-	// 	internal
-	// 	pure
-	// 	returns (string[] memory)
-	// {
-	// 	for (uint i = 0; i < source.length; i++) {
-	// 		if (compareStrings(source[i], target)) {
-	// 			delete source[i];
-	// 		}
-	// 	}
-	// 	return source;
-	// }
+	function exists(address[] memory list, address item) internal pure returns (bool) {
+		for (uint i = 0; i < list.length; i++) {
+			if (list[i] == item) return true;
+		}
+		return false;
+	}
 }
